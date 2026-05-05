@@ -1,0 +1,52 @@
+# ============================================================================
+# Local-dev stack: SQL Server + Redis + API.
+# Mobile dev tools run on the host, not in Docker.
+# ============================================================================
+services:
+  sqlserver:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    container_name: hp-sqlserver
+    environment:
+      ACCEPT_EULA: Y
+      SA_PASSWORD: "HajeryPulse_Dev_2026!"
+      MSSQL_PID: Developer
+    ports:
+      - "1433:1433"
+    volumes:
+      - sqlserver-data:/var/opt/mssql
+    healthcheck:
+      test: ["CMD-SHELL", "/opt/mssql-tools/bin/sqlcmd -S localhost -U sa -P $$SA_PASSWORD -Q 'SELECT 1' || exit 1"]
+      interval: 10s
+      retries: 6
+
+  redis:
+    image: redis:7-alpine
+    container_name: hp-redis
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      retries: 3
+
+  api:
+    build:
+      context: ..
+      dockerfile: deploy/api.Dockerfile
+    container_name: hp-api
+    depends_on:
+      sqlserver:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      ConnectionStrings__ReportingDb: "Server=sqlserver;Database=HajeryPulse_Reporting;User Id=sa;Password=HajeryPulse_Dev_2026!;Encrypt=False;TrustServerCertificate=true"
+      ConnectionStrings__Redis: "redis:6379"
+      EntraId__TenantId: "YOUR_TENANT_ID"
+      EntraId__ClientId: "YOUR_API_CLIENT_ID"
+    ports:
+      - "5001:5001"
+
+volumes:
+  sqlserver-data:

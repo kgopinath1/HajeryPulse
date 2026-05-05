@@ -1,0 +1,44 @@
+/**
+ * Display formatters. KWD figures from the API are always in thousands.
+ */
+
+/** 1234.5 → "KWD 1.23M" ; 742 → "KWD 742K" ; 12.34 → "KWD 12K" */
+export function fmtKwd(thousands: number): string {
+  if (thousands == null || isNaN(thousands)) return '—';
+  if (Math.abs(thousands) >= 1000) {
+    return `KWD ${(thousands / 1000).toFixed(2)}M`;
+  }
+  return `KWD ${Math.round(thousands)}K`;
+}
+
+/** 41.83 → "41.8%"  */
+export function fmtPct(value: number, decimals = 1): string {
+  if (value == null || isNaN(value)) return '—';
+  return `${value.toFixed(decimals)}%`;
+}
+
+/** 18240 → "18,240" */
+export function fmtInt(value: number): string {
+  if (value == null || isNaN(value)) return '—';
+  return Math.round(value).toLocaleString('en-US');
+}
+
+/** YoY arrow + value: 12.4 → "▲ 12.4%" ; -3.2 → "▼ 3.2%" */
+export function fmtYoy(value: number): string {
+  if (value == null || isNaN(value)) return '—';
+  const arrow = value >= 0 ? '▲' : '▼';
+  return `${arrow} ${Math.abs(value).toFixed(1)}%`;
+}
+
+/** YoY in pp: 1.2 → "▲ +1.2 pp" ; -0.8 → "▼ 0.8 pp" */
+export function fmtYoyPp(value: number): string {
+  if (value == null || isNaN(value)) return '—';
+  const arrow = value >= 0 ? '▲' : '▼';
+  const sign  = value >= 0 ? '+' : '';
+  return `${arrow} ${sign}${value.toFixed(1)} pp`;
+}
+
+/** Initials from a string, max 2 chars: "Al Anoud Pharmacy" → "AA" */
+export function initials(s: string, max = 2): string {
+  return (s.match(/[A-Z]/g) || []).slice(0, max).join('') || s.slice(0, max).toUpperCase();
+}
