@@ -15,6 +15,8 @@ interface Props {
   visible: boolean;
   title: string;
   subtitle?: string;
+  tab?: 'brands' | 'outlets';
+  onTabChange?: (val: 'brands' | 'outlets') => void;
   options: PickerOption[];
   selectedKey: string;
   onSelect: (key: string) => void;
@@ -24,7 +26,7 @@ interface Props {
 /**
  * Bottom-sheet modal for filter pickers (pharmacy, F&B brand/outlet).
  */
-export function PickerModal({ visible, title, subtitle, options, selectedKey, onSelect, onClose }: Props): React.JSX.Element {
+export function PickerModal({ visible, title, subtitle, tab = 'brands', onTabChange, options, selectedKey, onSelect, onClose }: Props): React.JSX.Element {
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
       <View style={styles.bg}>
@@ -33,6 +35,27 @@ export function PickerModal({ visible, title, subtitle, options, selectedKey, on
           <View style={styles.handle} />
           <Text style={styles.title}>{title}</Text>
           {subtitle && <Text style={styles.subtitle}>{subtitle}</Text>}
+          {onTabChange && (
+            <View style={styles.tabContainer}>
+              <TouchableOpacity
+                style={[styles.tab, tab === 'brands' && styles.tabActive]}
+                onPress={() => onTabChange('brands')}
+              >
+                <Text style={[styles.tabText, tab === 'brands' && styles.tabTextActive]}>
+                  Brands
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.tab, tab === 'outlets' && styles.tabActive]}
+                onPress={() => onTabChange('outlets')}
+              >
+                <Text style={[styles.tabText, tab === 'outlets' && styles.tabTextActive]}>
+                  Outlets
+                </Text>
+              </TouchableOpacity>
+            </View>
+          )}
           <FlatList
             data={options}
             keyExtractor={item => item.key}
@@ -47,7 +70,27 @@ export function PickerModal({ visible, title, subtitle, options, selectedKey, on
                     {active && <View style={styles.radioDot} />}
                   </View>
                   <View style={{ flex: 1 }}>
-                    <Text style={styles.optTitle}>{item.title}</Text>
+<View style={{ flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap' }}>
+  {item.tag === 'Outlet' ? (
+    <>
+      {/* ✅ Division/Outlet Code */}
+      <Text style={styles.code}>
+        {item.title.split(' ')[0]}
+      </Text>
+
+      {/* ✅ Space */}
+      <Text> </Text>
+
+      {/* ✅ Name */}
+      <Text style={styles.optTitle}>
+        {item.title.split(' ').slice(1).join(' ')}
+      </Text>
+    </>
+  ) : (
+    <Text style={styles.optTitle}>{item.title}</Text>
+  )}
+</View>
+
                     {item.subtitle && <Text style={styles.optSub}>{item.subtitle}</Text>}
                   </View>
                   {item.tag && <Text style={styles.optTag}>{item.tag}</Text>}
@@ -103,4 +146,44 @@ const styles = StyleSheet.create({
     color: theme.colors.gold, backgroundColor: 'rgba(212,175,106,0.14)',
     paddingHorizontal: 8, paddingVertical: 3, borderRadius: 10,
   },
+  tabContainer: {
+    flexDirection: 'row',
+    backgroundColor: theme.colors.surface,
+    borderRadius: 12,
+    padding: 4,
+    marginBottom: 12,
+  },
+
+  tab: {
+    flex: 1,
+    paddingVertical: 8,
+    alignItems: 'center',
+    borderRadius: 10,
+  },
+
+  tabActive: {
+    backgroundColor: 'rgba(212,175,106,0.15)',
+  },
+
+  tabText: {
+    fontSize: 12,
+    color: theme.colors.text2,
+    fontWeight: '600',
+  },
+
+  tabTextActive: {
+    color: theme.colors.gold,
+    fontWeight: '700',
+  },
+code: {
+  fontSize: 10,
+  fontWeight: '700',
+  color: theme.colors.gold,
+  backgroundColor: 'rgba(212,175,106,0.14)',
+  paddingHorizontal: 6,
+  paddingVertical: 2,
+  borderRadius: 6,
+  overflow: 'hidden',
+},
+
 });

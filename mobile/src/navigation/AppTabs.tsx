@@ -1,7 +1,7 @@
 import React from 'react';
 import { Text, View } from 'react-native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-
+import Ionicons from 'react-native-vector-icons/Ionicons';
 import { WholesaleTenderScreen } from '@screens/WholesaleTenderScreen';
 import { PharmaciesScreen }       from '@screens/PharmaciesScreen';
 import { FBScreen }                from '@screens/FBScreen';
@@ -9,14 +9,14 @@ import { FinanceOpsScreen }        from '@screens/FinanceOpsScreen';
 import { InboxScreen }             from '@screens/InboxScreen';
 import { AppTabsParamList } from './types';
 import { theme } from '@theme/index';
+import { LoginScreen } from '@/screens/LoginScreen';
 
 const Tab = createBottomTabNavigator<AppTabsParamList>();
 
-const tabIcon = (label: string) => ({ color }: { color: string }) => (
-  <View style={{ alignItems: 'center' }}>
-    <Text style={{ fontSize: 10, fontWeight: '600', color }}>{label}</Text>
-  </View>
+const tabIcon = (iconName: string) => ({ color, size }: { color: string; size: number }) => (
+  <Ionicons name={iconName} size={22} color={color} />
 );
+
 
 export function AppTabs(): React.JSX.Element {
   return (
@@ -28,36 +28,71 @@ export function AppTabs(): React.JSX.Element {
           height: 60,
           paddingTop: 6,
         },
+    tabBarLabelStyle: {
+      fontSize: 10,
+      fontWeight: '600',
+    },
         tabBarActiveTintColor:   theme.colors.gold,
         tabBarInactiveTintColor: theme.colors.text2,
         headerShown: false,
       }}
     >
-      <Tab.Screen
-        name="WholesaleTender"
-        component={WholesaleTenderScreen}
-        options={{ title: 'W&T', tabBarIcon: tabIcon('W&T') }}
-      />
-      <Tab.Screen
-        name="Pharmacies"
-        component={PharmaciesScreen}
-        options={{ title: 'Pharma', tabBarIcon: tabIcon('PHARMA') }}
-      />
-      <Tab.Screen
-        name="FB"
-        component={FBScreen}
-        options={{ title: 'F&B', tabBarIcon: tabIcon('F&B') }}
-      />
-      <Tab.Screen
-        name="FinanceOps"
-        component={FinanceOpsScreen}
-        options={{ title: 'Finance', tabBarIcon: tabIcon('FIN') }}
-      />
-      <Tab.Screen
-        name="Inbox"
-        component={InboxScreen}
-        options={{ title: 'Inbox', tabBarIcon: tabIcon('INBOX') }}
-      />
+
+      
+     {/*  <Tab.Screen
+       name="Login"
+       component={LoginScreen}
+       options={{
+         title: 'Login',
+         tabBarIcon: tabIcon('briefcase-outline'),
+       }}
+     /> */}
+
+     <Tab.Screen
+       name="WholesaleTender"
+       component={WholesaleTenderScreen}
+       options={{
+         title: 'W&T',
+         tabBarIcon: tabIcon('briefcase-outline'),
+       }}
+     />
+
+     <Tab.Screen
+       name="Pharmacies"
+       component={PharmaciesScreen}
+       options={{
+         title: 'Pharma',
+         tabBarIcon: tabIcon('medkit-outline'),
+       }}
+     />
+
+     <Tab.Screen
+       name="FB"
+       component={FBScreen}
+       options={{
+         title: 'F&B',
+         tabBarIcon: tabIcon('restaurant-outline'),
+       }}
+     />
+
+     <Tab.Screen
+       name="FinanceOps"
+       component={FinanceOpsScreen}
+       options={{
+         title: 'Finance',
+         tabBarIcon: tabIcon('cash-outline'),
+       }}
+     />
+
+     <Tab.Screen
+       name="Inbox"
+       component={InboxScreen}
+       options={{
+         title: 'Inbox',
+         tabBarIcon: tabIcon('mail-outline'),
+       }}
+     />
+
     </Tab.Navigator>
   );
 }

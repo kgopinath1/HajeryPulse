@@ -12,12 +12,17 @@ import { Card } from '@components/Card';
 import { KpiTile } from '@components/KpiTile';
 import { SectionTitle } from '@components/SectionTitle';
 import { AsOnDateBar } from '@components/AsOnDateBar';
+import { AsOnDateModal } from '@components/AsOnDateModal';
+import { SegTabs } from '@components/SegTabs';
 import { financeApi, FinanceHealth, OpsSummary } from '@api/finance';
 import { defaultAsOfDate } from '@utils/date';
 import { fmtKwd, fmtPct, fmtInt } from '@utils/format';
 
 export function FinanceOpsScreen(): React.JSX.Element {
-  const [asOfDate] = useState(defaultAsOfDate());
+    const [asOfDate, setAsOfDate] = useState<string>(defaultAsOfDate());
+  
+    const [dateModalVisible, setDateModalVisible] = useState(false);
+      const [period, setPeriod] = useState<'day' | 'week' | 'month' | 'ytd'>('week');
   const [health, setHealth] = useState<FinanceHealth | null>(null);
   const [ops, setOps]       = useState<OpsSummary | null>(null);
   const [loading, setLoading] = useState(true);
@@ -36,7 +41,22 @@ export function FinanceOpsScreen(): React.JSX.Element {
         <Text style={styles.h2}>Finance &amp; Ops</Text>
         <Text style={styles.subhead}>Margin · AR/AP · SLA</Text>
 
-        <AsOnDateBar asOfDate={asOfDate} />
+        {/* Date Picker */}
+               <AsOnDateBar
+                 asOfDate={asOfDate}
+                 onPress={() => setDateModalVisible(true)}
+               />
+
+                <SegTabs
+                         value={period}
+                         onChange={val => setPeriod(val)}
+                         options={[
+                           { key: 'day', label: 'Day' },
+                           { key: 'week', label: 'Week' },
+                           { key: 'month', label: 'Month' },
+                           { key: 'ytd', label: 'YTD' },
+                         ]}
+                       />
 
         {/* Donut */}
         {health && (
@@ -74,6 +94,14 @@ export function FinanceOpsScreen(): React.JSX.Element {
           </>
         )}
       </ScrollView>
+
+      <AsOnDateModal
+              visible={dateModalVisible}
+              onClose={() => setDateModalVisible(false)}
+              currentDate={asOfDate}
+              onSelect={(date) => setAsOfDate(date)}
+            />
+
     </SafeAreaView>
   );
 }

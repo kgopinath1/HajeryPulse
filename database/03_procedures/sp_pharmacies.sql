@@ -52,30 +52,39 @@ GO
 -- ============================================================================
 CREATE OR ALTER PROCEDURE app.sp_GetPharmacySummary
     @AsOfDate   DATE,
-    @PharmacyId NVARCHAR(20) = 'all'
+    @PharmacyId NVARCHAR(20) = 'all',
+    @Period NVARCHAR(20) = 'week'
 AS
 BEGIN
     SET NOCOUNT ON;
 
     DECLARE @asOfKey INT = CONVERT(INT, FORMAT(@AsOfDate, 'yyyyMMdd'));
-    DECLARE @weekStart INT = CONVERT(INT, FORMAT(DATEADD(DAY, -6, @AsOfDate), 'yyyyMMdd'));
+    DECLARE @startDate DATE =
+        CASE LOWER(ISNULL(@Period, 'week'))
+            WHEN 'month'   THEN DATEADD(MONTH, -1, @AsOfDate)
+            WHEN 'quarter' THEN DATEADD(MONTH, -3, @AsOfDate)
+            WHEN 'ytd'     THEN DATEFROMPARTS(YEAR(@AsOfDate), 1, 1)
+            WHEN 'year'    THEN DATEADD(YEAR, -1, @AsOfDate)
+            ELSE DATEADD(DAY, -6, @AsOfDate)
+        END;
+    DECLARE @startKey INT = CONVERT(INT, FORMAT(@startDate, 'yyyyMMdd'));
     DECLARE @phKey INT = app.fn_PharmacyKey(@PharmacyId);
 
     ;WITH agg AS (
         SELECT
-            SUM(NetKwd) AS Net,
-            SUM(Transactions) AS Txns,
+            ISNULL(SUM(NetKwd), 0) AS Net,
+            ISNULL(SUM(Transactions), 0) AS Txns,
             COUNT(DISTINCT PharmacyKey) AS DistinctPharmacies
         FROM fact.PharmacySales f
-        WHERE f.DateKey BETWEEN @weekStart AND @asOfKey
+        WHERE f.DateKey BETWEEN @startKey AND @asOfKey
           AND (@phKey IS NULL OR f.PharmacyKey = @phKey)
     ),
     rxAgg AS (
-        SELECT SUM(CASE WHEN c.IsRx = 1 THEN f.NetKwd ELSE 0 END) AS RxNet,
-               SUM(f.NetKwd) AS TotalNet
+        SELECT ISNULL(SUM(CASE WHEN c.IsRx = 1 THEN f.NetKwd ELSE 0 END), 0) AS RxNet,
+               ISNULL(SUM(f.NetKwd), 0) AS TotalNet
         FROM fact.PharmacySales f
         LEFT JOIN ref.Category c ON c.CategoryKey = f.CategoryKey
-        WHERE f.DateKey BETWEEN @weekStart AND @asOfKey
+        WHERE f.DateKey BETWEEN @startKey AND @asOfKey
           AND (@phKey IS NULL OR f.PharmacyKey = @phKey)
     )
     SELECT

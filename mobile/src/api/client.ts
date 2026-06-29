@@ -12,7 +12,7 @@ import { getStoredAccessToken, refreshAccessToken } from '@auth/tokens';
 
 // In production, point at the data-center API URL or use env-driven config.
 const BASE_URL = __DEV__
-  ? 'http://10.0.2.2:5001/api/v1'      // Android emulator → host loopback
+  ? 'http://10.0.2.2:50758/api/v1'      // Android emulator → host loopback
   : 'https://api.hajerypulse.internal/api/v1';
 
 export interface ApiError {
@@ -32,6 +32,7 @@ apiClient.interceptors.request.use(async (config: InternalAxiosRequestConfig) =>
   const token = await getStoredAccessToken();
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
+    console.log('TOKEN:', token);
   }
   return config;
 });

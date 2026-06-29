@@ -1,0 +1,28 @@
+# Visual Studio
+.vs/
+**/.vs/
+
+# .NET build output
+**/bin/
+**/obj/
+
+# Logs
+**/logs/
+
+# Node packages
+node_modules/
+**/node_modules/
+
+# React Native Android build files
+mobile/android/.gradle/
+mobile/android/build/
+mobile/android/app/build/
+
+# iOS build
+mobile/ios/build/
+
+# IDE files
+.idea/
+
+# Zip files
+*.zip

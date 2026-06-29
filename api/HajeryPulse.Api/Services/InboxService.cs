@@ -16,13 +16,19 @@ public interface IInboxService
 public sealed class InboxService : IInboxService
 {
     private readonly IInboxRepository _repo;
-    private readonly ICacheService _cache;
+    //private readonly ICacheService _cache;
     private readonly ILogger<InboxService> _logger;
 
-    public InboxService(IInboxRepository repo, ICacheService cache, ILogger<InboxService> logger)
+    //public InboxService(IInboxRepository repo, ICacheService cache, ILogger<InboxService> logger)
+    //{
+    //    _repo   = repo;
+    //    _cache  = cache;
+    //    _logger = logger;
+    //}
+    public InboxService(IInboxRepository repo, ILogger<InboxService> logger)
     {
-        _repo   = repo;
-        _cache  = cache;
+        _repo = repo;
+      //  _cache = cache;
         _logger = logger;
     }
 
@@ -40,7 +46,8 @@ public sealed class InboxService : IInboxService
     {
         var userId = UserId(user);
         var result = await _repo.Approve(userId, id, comment);
-        await _cache.RemoveAsync("hp:inbox:list");
+
+       // await _cache.RemoveAsync("hp:inbox:list");
         _logger.LogInformation("User {UserId} approved {RequestId}", userId, id);
         return result;
     }
@@ -49,7 +56,7 @@ public sealed class InboxService : IInboxService
     {
         var userId = UserId(user);
         var result = await _repo.Reject(userId, id, comment);
-        await _cache.RemoveAsync("hp:inbox:list");
+      //  await _cache.RemoveAsync("hp:inbox:list");
         _logger.LogInformation("User {UserId} rejected {RequestId}", userId, id);
         return result;
     }

@@ -1,15 +1,17 @@
 using HajeryPulse.Api.Auth;
 using HajeryPulse.Api.Data;
+using HajeryPulse.Api.Data.Repositories;
 using HajeryPulse.Api.Middleware;
 using HajeryPulse.Api.Services;
-using HajeryPulse.Api.Data.Repositories;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.Data.SqlClient;
 using Microsoft.Identity.Web;
 using Serilog;
 using StackExchange.Redis;
+using System.Security.Claims;
 
 var builder = WebApplication.CreateBuilder(args);
+builder.Services.AddLogging();
 
 // ---------- Logging ----------
 builder.Host.UseSerilog((ctx, lc) => lc
@@ -18,12 +20,29 @@ builder.Host.UseSerilog((ctx, lc) => lc
     .WriteTo.Console()
     .WriteTo.File("logs/hajery-pulse-.log", rollingInterval: RollingInterval.Day));
 
+
 // ---------- Auth ----------
 // Registers JWT bearer with Entra ID. The settings come from appsettings.json
 // under the "EntraId" section: TenantId, ClientId, Audience, Authority.
 builder.Services
     .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
-    .AddMicrosoftIdentityWebApi(builder.Configuration.GetSection("EntraId"));
+
+.AddJwtBearer(options =>
+{
+    options.RequireHttpsMetadata = false;
+    options.TokenValidationParameters = new Microsoft.IdentityModel.Tokens.TokenValidationParameters
+    {
+        ValidateIssuer = false,
+        ValidateAudience = false,
+        ValidateIssuerSigningKey = true,
+        RoleClaimType = ClaimTypes.Role,
+        NameClaimType = ClaimTypes.Name,
+        IssuerSigningKey = new Microsoft.IdentityModel.Tokens.SymmetricSecurityKey(
+            System.Text.Encoding.UTF8.GetBytes("TTHIS_IS_MY_DEV_SECRET_KEY_1234567890"))
+    };
+});
+
+//.AddMicrosoftIdentityWebApi(builder.Configuration.GetSection("EntraId"));
 
 builder.Services.AddAuthorization(options =>
 {
@@ -39,14 +58,14 @@ builder.Services.AddCors(o => o.AddDefaultPolicy(p => p
 
 // ---------- Health checks ----------
 var sqlConnString   = builder.Configuration.GetConnectionString("ReportingDb")!;
-var redisConnString = builder.Configuration.GetConnectionString("Redis")!;
+//var redisConnString = builder.Configuration.GetConnectionString("Redis")!;
 builder.Services.AddHealthChecks()
-    .AddSqlServer(sqlConnString, name: "reporting-db")
-    .AddRedis(redisConnString,   name: "redis-cache");
+    .AddSqlServer(sqlConnString, name: "reporting-db");
+   // .AddRedis(redisConnString,   name: "redis-cache");
 
 // ---------- Data + cache ----------
-builder.Services.AddSingleton<IConnectionMultiplexer>(_ =>
-    ConnectionMultiplexer.Connect(redisConnString));
+//builder.Services.AddSingleton<IConnectionMultiplexer>(_ =>
+//    ConnectionMultiplexer.Connect(redisConnString));
 builder.Services.AddScoped<SqlConnection>(_ => new SqlConnection(sqlConnString));
 builder.Services.AddScoped<IDbConnectionFactory, DbConnectionFactory>();
 
@@ -58,7 +77,7 @@ builder.Services.AddScoped<IFinanceRepository, FinanceRepository>();
 builder.Services.AddScoped<IInboxRepository,   InboxRepository>();
 
 // ---------- Services ----------
-builder.Services.AddScoped<ICacheService,   RedisCacheService>();
+//builder.Services.AddScoped<ICacheService,   RedisCacheService>();
 builder.Services.AddScoped<ISalesService,   SalesService>();
 builder.Services.AddScoped<IPharmaService,  PharmaService>();
 builder.Services.AddScoped<IFBService,      FBService>();
@@ -76,6 +95,7 @@ builder.Services.AddSwaggerGen(c =>
 var app = builder.Build();
 
 // ---------- Pipeline ----------
+// ---------- Pipeline ----------
 app.UseSerilogRequestLogging();
 app.UseMiddleware<ExceptionMiddleware>();
 app.UseMiddleware<AuditLogMiddleware>();
@@ -86,7 +106,7 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
-app.UseHttpsRedirection();
+//app.UseHttpsRedirection();
 app.UseCors();
 app.UseAuthentication();
 app.UseAuthorization();

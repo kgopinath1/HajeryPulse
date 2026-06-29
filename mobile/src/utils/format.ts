@@ -11,6 +11,32 @@ export function fmtKwd(thousands: number): string {
   return `KWD ${Math.round(thousands)}K`;
 }
 
+/**already divided by 1000 */
+export function fmtKwdSmallVal(thousands: number): string {
+  if (thousands == null || isNaN(thousands)) return '—';
+
+  const abs = Math.abs(thousands);
+
+  // ✅ Handle small values (< 1K)
+  if (abs < 1) {
+    return `KWD ${(thousands * 1000).toFixed(2)}`;
+  }
+
+  // ✅ Millions
+  if (abs >= 1000) {
+    return `KWD ${(thousands / 1000).toFixed(2)}M`;
+  }
+
+  // ✅ Thousands
+  return `KWD ${Math.round(thousands)}K`;
+}
+
+/** 1234.5 → "KWD 1234.500" */
+export function fmtKwdAsIs(value: number): string {
+  if (value == null || isNaN(value)) return '—';
+  return `KWD ${value.toFixed(3)}`;
+}
+
 /** 41.83 → "41.8%"  */
 export function fmtPct(value: number, decimals = 1): string {
   if (value == null || isNaN(value)) return '—';
@@ -24,10 +50,11 @@ export function fmtInt(value: number): string {
 }
 
 /** YoY arrow + value: 12.4 → "▲ 12.4%" ; -3.2 → "▼ 3.2%" */
-export function fmtYoy(value: number): string {
+export function fmtYoy(value: number,type?: string): string {
   if (value == null || isNaN(value)) return '—';
   const arrow = value >= 0 ? '▲' : '▼';
-  return `${arrow} ${Math.abs(value).toFixed(1)}%`;
+  const pct = Math.abs(value).toFixed(1);
+  return `${arrow} ${pct}% ${type ?? ''}`.trim();
 }
 
 /** YoY in pp: 1.2 → "▲ +1.2 pp" ; -0.8 → "▼ 0.8 pp" */

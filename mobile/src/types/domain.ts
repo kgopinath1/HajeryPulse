@@ -19,12 +19,15 @@ export interface AsOfMeta {
 export interface WTSummary {
   asOfDate: string;
   bt: BTFilter;
-  revenue: { kwd: number; wow: number };
+  revenue: { kwd: number; wow: number ; growthType: string; };
   kpis: {
     newOrders: number;
     openOrderValueKwd: number;
+    pipelineAmount: number;
     activeTenders: number;
     avgTenderValueKwd: number;
+    avgTenderValuePct: number;
+  
   };
   spark: number[];
 }
@@ -47,7 +50,12 @@ export interface SalesQuality {
   netKwd: number;
   netPct: number;
   returnsPct: number;
+  returnsPctLy: number;
   cancellationsPct: number;
+  returnsPctLY: number;
+  growthType: string;
+  netPctQoQ: number;
+  
 }
 
 export interface OrgNode {
@@ -62,8 +70,11 @@ export interface OrgChild {
   name: string;
   amtW: number;
   amtT: number;
-  yoy: number;
+  total: number;
+  sharePct: number;
+  yoyPct: number;
   hasChildren: boolean;
+  growthType: string;
 }
 
 export interface TopBrand {
@@ -72,6 +83,7 @@ export interface TopBrand {
   segment: string;
   amountKwd: number;
   yoyPct: number;
+  growthType: string;
 }
 
 export interface TopCustomer {
@@ -81,6 +93,7 @@ export interface TopCustomer {
   ordersThisWeek: number;
   amountKwd: number;
   yoyPct: number;
+  growthType: string;
 }
 
 // Pharmacies
@@ -94,10 +107,16 @@ export interface PharmaSummary {
   pharmacy: Pharmacy;
   revenueKwd: number;
   transactions: number;
+  deltaTxns: number;
+  prevbasketSize: number;
+    deltaBasketSizeKwd: number;
   basketSizeKwd: number;
-  storesActive: number;
+    storesActive: number;
   storesTotal: number;
   rxSharePct: number;
+  growthPct: number;
+  growthType: string;
+  yoyPct: number;
 }
 
 export interface PharmaMargin {
@@ -108,6 +127,9 @@ export interface PharmaMargin {
   netSalesKwd: number;
   marginPct: number;
   marginPctLY: number;
+  lyGrossKwd: number;
+  lyNetSalesKwd: number;
+  lyCogsKwd: number;
 }
 
 export interface PharmaChannel {
@@ -125,7 +147,12 @@ export interface PharmaRxOtcMix {
   rxKwd: number;
   otcKwd: number;
   rxYoyPp: number;
+  rxYoyPct: number;
+  otcYoyPct: number;
+  growthType: string;
 }
+
+export interface PharmaTrendPoint { slot: number; value: number; }
 
 // F&B
 export interface FBBrand {
@@ -150,14 +177,28 @@ export interface FBSummary {
   scope: { type: FbScopeType; id: string | null; name: string };
   revenueKwd: number;
   covers: number;
+  coversdelta: number;
   ticketKwd: number;
+  ticketKwdDelta: number;
   outletsActive: number;
   outletsTotal: number;
+  growthPct: number;
+  growthType: string;
   yoyPct: number;
 }
 
 export interface FBAggregatorRow { key: string; label: string; kwd: number; pct: number; color: string; }
+export interface FBChannelMix {
+  dineInKwd: number;
+  deliveryKwd: number;
+  takeawayKwd: number;
+  dineInPct: number;
+  deliveryPct: number;
+  takeawayPct: number;
+}
 export interface FBPaymentRow { key: string; label: string; kwd: number; pct: number; color: string; }
+export interface FBTrendPoint {slot: number; value: number;}
+
 
 // Inbox
 export interface ApprovalRequestSummary {

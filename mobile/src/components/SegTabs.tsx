@@ -3,7 +3,7 @@ import { Text, TouchableOpacity, View, StyleSheet } from 'react-native';
 import { theme } from '@theme/index';
 
 interface Props<T extends string> {
-  options: { key: T; label: string }[];
+  options: { key: T; label: string ; icon?: React.ReactNode;}[];
   value: T;
   onChange: (key: T) => void;
 }
@@ -19,7 +19,12 @@ export function SegTabs<T extends string>({ options, value, onChange }: Props<T>
             onPress={() => onChange(o.key)}
             style={[styles.btn, active && styles.btnActive]}
           >
-            <Text style={[styles.txt, active && styles.txtActive]}>{o.label}</Text>
+            <View style={styles.content}>
+  {o.icon}
+  <Text style={[styles.txt, active && styles.txtActive]}>
+    {o.label}
+  </Text>
+</View>
           </TouchableOpacity>
         );
       })}
@@ -43,4 +48,10 @@ const styles = StyleSheet.create({
   btnActive: { backgroundColor: 'rgba(212,175,106,0.16)' },
   txt: { fontSize: theme.fontSize.md, fontWeight: '600', color: theme.colors.text2 },
   txtActive: { color: theme.colors.gold },
+  content: {
+  flexDirection: 'row',
+  alignItems: 'center',
+  justifyContent: 'center',
+  gap: 6,
+},
 });
