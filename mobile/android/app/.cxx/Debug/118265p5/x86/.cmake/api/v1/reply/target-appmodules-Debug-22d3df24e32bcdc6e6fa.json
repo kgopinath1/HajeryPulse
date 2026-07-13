@@ -328,10 +328,6 @@
 	[
 		{
 			"backtrace" : 4,
-			"id" : "react_codegen_rnasyncstorage::@1596841e19ec5b9eeffe"
-		},
-		{
-			"backtrace" : 4,
 			"id" : "react_codegen_RNDateTimePickerCGen::@59b70ddc31ba2f8ef1d2"
 		},
 		{
@@ -344,7 +340,7 @@
 		},
 		{
 			"backtrace" : 4,
-			"id" : "react_codegen_rnsvg::@4f40eb209d0c0b4a3b65"
+			"id" : "react_codegen_safeareacontext::@7984cd80db47aa7b952a"
 		},
 		{
 			"backtrace" : 4,
@@ -352,7 +348,11 @@
 		},
 		{
 			"backtrace" : 4,
-			"id" : "react_codegen_safeareacontext::@7984cd80db47aa7b952a"
+			"id" : "react_codegen_rnsvg::@4f40eb209d0c0b4a3b65"
+		},
+		{
+			"backtrace" : 4,
+			"id" : "react_codegen_rnasyncstorage::@1596841e19ec5b9eeffe"
 		},
 		{
 			"backtrace" : 4,

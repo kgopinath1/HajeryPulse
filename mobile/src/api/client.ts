@@ -15,6 +15,12 @@ const BASE_URL = __DEV__
   ? 'http://10.0.2.2:50758/api/v1'      // Android emulator → host loopback
   : 'https://api.hajerypulse.internal/api/v1';
 
+  
+const SPEND_API = __DEV__
+  ? 'http://192.168.10.147:8086/api'
+  : 'https://spendflow.internal/api';
+
+
 export interface ApiError {
   code: string;
   message: string;
@@ -27,6 +33,13 @@ export const apiClient: AxiosInstance = axios.create({
   timeout: 15000,
   headers: { 'Content-Type': 'application/json' },
 });
+
+export const spendClient: AxiosInstance = axios.create({
+  baseURL: SPEND_API,
+  timeout: 15000,
+  headers: { 'Content-Type': 'application/json' },
+});
+
 
 apiClient.interceptors.request.use(async (config: InternalAxiosRequestConfig) => {
   const token = await getStoredAccessToken();
@@ -57,6 +70,24 @@ apiClient.interceptors.response.use(
       }
     }
 
+    spendClient.interceptors.response.use(
+  resp => resp,
+  async (err: AxiosError) => {
+    const status = err.response?.status ?? 0;
+
+    const body: any = err.response?.data ?? {};
+    const apiError: ApiError = {
+      code: body?.error?.code ?? 'UNKNOWN',
+      message: body?.error?.message ?? err.message ?? 'Request failed',
+      traceId: body?.error?.traceId,
+      status,
+    };
+
+    return Promise.reject(apiError);
+  }
+);
+
+
     // Surface a stable shape
     const body: any = err.response?.data ?? {};
     const apiError: ApiError = {
@@ -78,5 +109,21 @@ export async function get<T>(path: string, params?: Record<string, unknown>): Pr
 /** Convenience POST wrapper. */
 export async function post<T>(path: string, body?: unknown): Promise<T> {
   const r = await apiClient.post<T>(path, body);
+  return r.data;
+}
+
+export async function spendGet<T>(
+  path: string,
+  params?: Record<string, unknown>
+): Promise<T> {
+  const r = await spendClient.get<T>(path, { params });
+  return r.data;
+}
+
+export async function spendPost<T>(
+  path: string,
+  body?: unknown
+): Promise<T> {
+  const r = await spendClient.post<T>(path, body);
   return r.data;
 }

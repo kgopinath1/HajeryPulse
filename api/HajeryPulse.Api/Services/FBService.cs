@@ -6,7 +6,7 @@ namespace HajeryPulse.Api.Services;
 
 public interface IFBService
 {
-    Task<IEnumerable<FBBrandDto>>      ListBrands();
+    Task<IEnumerable<FBBrandDto>>      ListBrands(string asOfDate,string period = "week");
     Task<IEnumerable<FBOutletDto>> ListOutlets(
      string asOfDate,
      string scopeType = "all",
@@ -17,10 +17,10 @@ public interface IFBService
     Task<IEnumerable<FBBrandDto>>      GetBrandSummary(string asOfDate, string scopeType, string? scopeId, string period);
     Task<IEnumerable<FBAggregatorDto>> GetAggregators(string asOfDate, string scopeType, string? scopeId,string period);
     Task<IEnumerable<FBPaymentDto>>    GetPayments(string asOfDate, string scopeType, string? scopeId,string period);
-    Task<FBChannelMixDto>              GetChannels(string asOfDate, string scopeType, string? scopeId,string period);
+    Task<List<FBChannelMixDto> >             GetChannels(string asOfDate, string scopeType, string? scopeId,string period);
     Task<IEnumerable<FBBrandDto>>      GetDeliveryByBrand(string asOfDate, string scopeType, string? scopeId,string period);
     Task<IEnumerable<FBOutletDto>>     GetTopOutlets(string asOfDate, string scopeType, string? scopeId, string Period, int limit);
-    Task<IEnumerable<FBTrendDto>> GetTrend(string asOfDate, string scopeType, string? scopeId, string period);
+    Task<FBTrendDto> GetTrend(string asOfDate, string scopeType, string? scopeId, string period);
 
 
 }
@@ -46,9 +46,9 @@ public sealed class FBService : IFBService
 
     private static string K(string s, params object?[] p) => $"hp:fb:{s}:" + string.Join(":", p);
 
-    public async Task<IEnumerable<FBBrandDto>> ListBrands()
+    public async Task<IEnumerable<FBBrandDto>> ListBrands(string d,  string per)
        //  => (await _cache.GetOrSetAsync(K("brands"), _ttl, async () => (await _repo.ListBrands()).ToList())) ?? Enumerable.Empty<FBBrandDto>();
-       => (await _repo.ListBrands()) ?? Enumerable.Empty<FBBrandDto>();
+       => (await _repo.ListBrands(d, per)) ?? Enumerable.Empty<FBBrandDto>();
 
     public async Task<IEnumerable<FBOutletDto>> ListOutlets(string d, string st, string? sid, string per)
         // => (await _cache.GetOrSetAsync(K("outlets", brand ?? "all"), _ttl, async () => (await _repo.ListOutlets(brand)).ToList())) ?? Enumerable.Empty<FBOutletDto>();
@@ -71,8 +71,12 @@ public sealed class FBService : IFBService
     public async Task<IEnumerable<FBPaymentDto>> GetPayments(string d, string st, string? sid, string per)
                 => (await _repo.GetPayments(d, st, sid, per)) ?? Enumerable.Empty<FBPaymentDto>();
 
-    public Task<FBChannelMixDto> GetChannels(string d, string st, string? sid,string per)
-                => _repo.GetChannels(d, st, sid, per);
+public Task<List<FBChannelMixDto>> GetChannels(
+    string d,
+    string st,
+    string? sid,
+    string per)
+    => _repo.GetChannels(d, st, sid, per);
 
     //  => (await _cache.GetOrSetAsync(K("pay", d, st, sid ?? "_"), _ttl, async () => (await _repo.GetPayments(d, st, sid)).ToList())) ?? Enumerable.Empty<FBPaymentDto>();
 
@@ -86,6 +90,12 @@ public sealed class FBService : IFBService
 
     // => (await _cache.GetOrSetAsync(K("top", d, st, sid ?? "_", limit), _ttl, async () => (await _repo.GetTopOutlets(d, st, sid, limit)).ToList())) ?? Enumerable.Empty<FBOutletDto>();
 
-    public async Task<IEnumerable<FBTrendDto>> GetTrend(string d, string st, string? sid, string per)
-                => (await _repo.GetTrend(d, st, sid, per))?.ToList() ?? Enumerable.Empty<FBTrendDto>();
+    public async Task<FBTrendDto> GetTrend(
+    string d,
+    string st,
+    string? sid,
+    string per)
+{
+    return await _repo.GetTrend(d, st, sid, per);
+}
 }

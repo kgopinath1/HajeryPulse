@@ -10,6 +10,8 @@ interface Props {
   labels?: string[]; // ✅ months (Jan, Feb, etc.)
   width?: number;
   height?: number;
+  primaryColor?: string;
+  secondaryColor?: string;
 }
 
 export function MultiSparkline({
@@ -18,6 +20,8 @@ export function MultiSparkline({
   labels = [],
   width = 330,
   height = 100,
+  primaryColor = theme.colors.goldSoft,
+  secondaryColor = theme.colors.blue,
 }: Props) {
 
   const [activeIndex, setActiveIndex] = useState<number | null>(null);
@@ -64,16 +68,16 @@ export function MultiSparkline({
       <Svg width={width} height={height}>
 
         {/* area */}
-        <Path d={areaPath} fill={theme.colors.goldSoft} fillOpacity={0.08} />
+        <Path d={areaPath} fill={primaryColor} fillOpacity={0.08} />
 
         {/* primary */}
-        <Path d={primaryPath} stroke={theme.colors.goldSoft} strokeWidth={3} fill="none" />
+        <Path d={primaryPath} stroke={primaryColor} strokeWidth={3} fill="none" />
 
         {/* secondary */}
         {secondary.length > 0 && (
           <Path
             d={secondaryPath}
-            stroke={theme.colors.blue}
+            stroke={secondaryColor}
             strokeWidth={2}
             strokeDasharray="4 4"
             fill="none"
@@ -98,7 +102,7 @@ export function MultiSparkline({
               cx={primaryPts[activeIndex].x}
               cy={primaryPts[activeIndex].y}
               r={5}
-              fill={theme.colors.goldSoft}
+              fill={primaryColor}
             />
           </>
         )}

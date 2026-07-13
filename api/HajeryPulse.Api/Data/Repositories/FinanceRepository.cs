@@ -18,14 +18,14 @@ public sealed class FinanceRepository : IFinanceRepository
     public async Task<FinanceHealthDto> GetHealth(string asOfDate)
     {
         using var c = await _factory.OpenAsync();
-        return await c.QueryFirstAsync<FinanceHealthDto>("app.sp_GetFinanceHealth",
+        return await c.QueryFirstOrDefaultAsync<FinanceHealthDto>("app.sp_GetFinanceHealth",
             new { AsOfDate = asOfDate }, commandType: CommandType.StoredProcedure);
     }
 
     public async Task<OpsSummaryDto> GetOps(string asOfDate)
     {
         using var c = await _factory.OpenAsync();
-        return await c.QueryFirstAsync<OpsSummaryDto>("app.sp_GetOpsSummary",
+        return await c.QueryFirstOrDefaultAsync<OpsSummaryDto>("app.sp_GetOpsSummary",
             new { AsOfDate = asOfDate }, commandType: CommandType.StoredProcedure);
     }
 }

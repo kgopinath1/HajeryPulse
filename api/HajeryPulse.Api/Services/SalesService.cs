@@ -6,11 +6,11 @@ namespace HajeryPulse.Api.Services;
 public interface ISalesService
 {
     Task<WTSummaryDto>          GetSummary(string asOfDate, string bt, string period);
-    Task<MarginAnalysisDto>     GetMargin(string asOfDate, string bt);
+    Task<MarginAnalysisDto>     GetMargin(string asOfDate, string bt, string period);
     Task<SalesQualityDto>       GetQuality(string asOfDate, string bt, string period);
     Task<OrgNodeDto>            GetOrgNode(string asOfDate, string bt, string parent, string period);
-    Task<IEnumerable<TopBrandDto>>    GetTopBrands(string asOfDate, string bt, string period, int limit);
-    Task<IEnumerable<TopCustomerDto>> GetTopCustomers(string asOfDate, string bt, string period, int limit);
+    Task<IEnumerable<TopBrandDto>>    GetTopBrands(string asOfDate, string bt, string period, int limit,string parent);
+    Task<IEnumerable<TopCustomerDto>> GetTopCustomers(string asOfDate, string bt, string period, int limit,string parent);
 }
 
 public sealed class SalesService : ISalesService
@@ -30,8 +30,8 @@ public sealed class SalesService : ISalesService
     {
         _repo = repo;
        // _cache = cache;
-        var seconds = config.GetValue<int>("Cache:DashboardTtlSeconds", 600);
-       // _ttl = TimeSpan.FromSeconds(seconds);
+            var seconds = config.GetValue<int>("Cache:DashboardTtlSeconds", 600);
+        // _ttl = TimeSpan.FromSeconds(seconds);
     }
 
 
@@ -68,8 +68,8 @@ public sealed class SalesService : ISalesService
     public Task<WTSummaryDto> GetSummary(string asOfDate, string bt, string period = "week")
         => _repo.GetSummary(asOfDate, bt, period);
 
-    public Task<MarginAnalysisDto> GetMargin(string asOfDate, string bt)
-        => _repo.GetMargin(asOfDate, bt);
+    public Task<MarginAnalysisDto> GetMargin(string asOfDate, string bt, string period = "week")
+        => _repo.GetMargin(asOfDate, bt, period);
 
     public Task<SalesQualityDto> GetQuality(string asOfDate, string bt, string period = "week")
         => _repo.GetQuality(asOfDate, bt, period);
@@ -77,9 +77,9 @@ public sealed class SalesService : ISalesService
     public Task<OrgNodeDto> GetOrgNode(string asOfDate, string bt, string parent, string period = "week")
         => _repo.GetOrgNode(asOfDate, bt, parent, period);
 
-    public async Task<IEnumerable<TopBrandDto>> GetTopBrands(string asOfDate, string bt, string period, int limit)
-        => (await _repo.GetTopBrands(asOfDate, bt, period, limit)) ?? Enumerable.Empty<TopBrandDto>();
+    public async Task<IEnumerable<TopBrandDto>> GetTopBrands(string asOfDate, string bt, string period, int limit, string parent = "root")
+        => (await _repo.GetTopBrands(asOfDate, bt, period, limit, parent)) ?? Enumerable.Empty<TopBrandDto>();
 
-    public async Task<IEnumerable<TopCustomerDto>> GetTopCustomers(string asOfDate, string bt, string period, int limit)
-        => (await _repo.GetTopCustomers(asOfDate, bt, period, limit)) ?? Enumerable.Empty<TopCustomerDto>();
+    public async Task<IEnumerable<TopCustomerDto>> GetTopCustomers(string asOfDate, string bt, string period, int limit, string parent = "root")
+        => (await _repo.GetTopCustomers(asOfDate, bt, period, limit,parent)) ?? Enumerable.Empty<TopCustomerDto>();
 }

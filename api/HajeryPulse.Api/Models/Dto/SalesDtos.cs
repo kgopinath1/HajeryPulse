@@ -6,7 +6,7 @@ public sealed record WTSummaryDto(
     string Period,
     RevenuePoint Revenue,
     WTKpis Kpis,
-    decimal[] Spark);
+    decimal[] Spark,decimal[] SparkLY);
 
 public sealed record RevenuePoint(decimal Kwd, decimal Wow,string GrowthType);
 public sealed record WTKpis(int NewOrders, decimal AvgOrderValueKwd, decimal AvgOrderValuePct, decimal PipelineAmount, int ActiveTenders, decimal AvgTenderValueKwd,decimal AvgTenderValuePct);

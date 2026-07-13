@@ -21,7 +21,14 @@ decimal GrowthPct,
 public sealed record FBAggregatorDto(string Key, string Label, decimal Kwd, decimal Pct, string Color);
 public sealed record FBPaymentDto(string Key, string Label, decimal Kwd, decimal Pct, string Color);
 public sealed record FBChannelMixDto(
-    decimal DineInKwd, decimal DeliveryKwd, decimal TakeawayKwd,
-    decimal DineInPct, decimal DeliveryPct, decimal TakeawayPct);
+    string ChannelCode,
+    string ChannelName,
+    decimal Kwd,
+    decimal Pct
+);
 
-public sealed record FBTrendDto(int Slot, decimal Value);
+public sealed record FBTrendDto(
+    decimal[] Current,
+    decimal[] Previous
+
+);

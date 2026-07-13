@@ -1,40 +1,49 @@
 /**
- * Display formatters. KWD figures from the API are always in thousands.
+ * Display formatters. KWD figures from the API are now always true, full values
+ * (no pre-scaling by the backend) — these formatters handle abbreviation internally.
  */
 
-/** 1234.5 → "KWD 1.23M" ; 742 → "KWD 742K" ; 12.34 → "KWD 12K" */
-export function fmtKwd(thousands: number): string {
-  if (thousands == null || isNaN(thousands)) return '—';
-  if (Math.abs(thousands) >= 1000) {
-    return `KWD ${(thousands / 1000).toFixed(2)}M`;
+/** 1234500 → "KWD 1.23M" ; 742000 → "KWD 742K" ; 3.245 → "KWD 3" */
+export function fmtKwd(value: number): string {
+  if (value == null || isNaN(value)) return '—';
+  const abs = Math.abs(value);
+
+  if (abs >= 1_000_000) {
+    return `KWD ${(value / 1_000_000).toFixed(2)}M`;
   }
-  return `KWD ${Math.round(thousands)}K`;
+  if (abs >= 1_000) {
+    return `KWD ${(value / 1_000).toFixed(0)}K`;
+  }
+  return `KWD ${Math.round(value)}`;
 }
 
-/**already divided by 1000 */
-export function fmtKwdSmallVal(thousands: number): string {
-  if (thousands == null || isNaN(thousands)) return '—';
-
-  const abs = Math.abs(thousands);
-
-  // ✅ Handle small values (< 1K)
-  if (abs < 1) {
-    return `KWD ${(thousands * 1000).toFixed(2)}`;
-  }
+/** For small values that still want K/M abbreviation but with more precision below 1K */
+export function fmtKwdSmallVal(value: number): string {
+  if (value == null || isNaN(value)) return '—';
+  const abs = Math.abs(value);
 
   // ✅ Millions
-  if (abs >= 1000) {
-    return `KWD ${(thousands / 1000).toFixed(2)}M`;
+  if (abs >= 1_000_000) {
+    return `KWD ${(value / 1_000_000).toFixed(2)}M`;
   }
 
   // ✅ Thousands
-  return `KWD ${Math.round(thousands)}K`;
+  if (abs >= 1_000) {
+    return `KWD ${(value / 1_000).toFixed(0)}K`;
+  }
+
+  // ✅ Small values (< 1K) — show with decimals for precision
+  return `KWD ${value.toFixed(2)}`;
 }
 
-/** 1234.5 → "KWD 1234.500" */
+/** 1234.5 → "1,234.500" */
 export function fmtKwdAsIs(value: number): string {
   if (value == null || isNaN(value)) return '—';
-  return `KWD ${value.toFixed(3)}`;
+
+  return value.toLocaleString('en-US', {
+    minimumFractionDigits: 3,
+    maximumFractionDigits: 3,
+  });
 }
 
 /** 41.83 → "41.8%"  */
@@ -50,7 +59,7 @@ export function fmtInt(value: number): string {
 }
 
 /** YoY arrow + value: 12.4 → "▲ 12.4%" ; -3.2 → "▼ 3.2%" */
-export function fmtYoy(value: number,type?: string): string {
+export function fmtYoy(value: number, type?: string): string {
   if (value == null || isNaN(value)) return '—';
   const arrow = value >= 0 ? '▲' : '▼';
   const pct = Math.abs(value).toFixed(1);
@@ -61,8 +70,8 @@ export function fmtYoy(value: number,type?: string): string {
 export function fmtYoyPp(value: number): string {
   if (value == null || isNaN(value)) return '—';
   const arrow = value >= 0 ? '▲' : '▼';
-  const sign  = value >= 0 ? '+' : '';
-  return `${arrow} ${sign}${value.toFixed(1)} pp`;
+  const sign = value >= 0 ? '+' : '';
+  return `${arrow} ${sign}${value.toFixed(1)} %`;
 }
 
 /** Initials from a string, max 2 chars: "Al Anoud Pharmacy" → "AA" */

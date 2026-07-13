@@ -19,8 +19,8 @@ public sealed class FBController : ControllerBase
     public FBController(IFBService service) => _service = service;
 
     [HttpGet("brands")]
-    public async Task<ActionResult<IEnumerable<FBBrandDto>>> GetBrands()
-        => Ok(await _service.ListBrands());
+    public async Task<ActionResult<IEnumerable<FBBrandDto>>> GetBrands([FromQuery] string asOfDate, [FromQuery] string period = "week")
+        => Ok(await _service.ListBrands(asOfDate,  period));
 
     [HttpGet("outlets")]
     public async Task<ActionResult<IEnumerable<FBOutletDto>>> GetOutlets([FromQuery] string asOfDate, [FromQuery] string scopeType = "all", [FromQuery] string? scopeId = null, [FromQuery] string period = "week")
@@ -77,11 +77,21 @@ public sealed class FBController : ControllerBase
     [HttpGet("payments")]
     public async Task<ActionResult<IEnumerable<FBPaymentDto>>> GetPayments([FromQuery] string asOfDate, [FromQuery] string scopeType = "all", [FromQuery] string? scopeId = null,[FromQuery] string period = "week")
         => Ok(await _service.GetPayments(asOfDate, scopeType, scopeId, period));
-
-    [HttpGet("channels")]
-    public async Task<ActionResult<FBChannelMixDto>> GetChannels([FromQuery] string asOfDate, [FromQuery] string scopeType = "all", [FromQuery] string? scopeId = null,[FromQuery] string period = "week")
-        => Ok(await _service.GetChannels(asOfDate, scopeType, scopeId,period));
-
+        
+[HttpGet("channels")]
+public async Task<ActionResult<IEnumerable<FBChannelMixDto>>> GetChannels(
+    [FromQuery] string asOfDate,
+    [FromQuery] string scopeType = "all",
+    [FromQuery] string? scopeId = null,
+    [FromQuery] string period = "week")
+{
+    return Ok(
+        await _service.GetChannels(
+            asOfDate,
+            scopeType,
+            scopeId,
+            period));
+}
     [HttpGet("delivery-by-brand")]
     public async Task<ActionResult<IEnumerable<FBBrandDto>>> GetDeliveryByBrand([FromQuery] string asOfDate, [FromQuery] string scopeType = "all", [FromQuery] string? scopeId = null,[FromQuery] string period = "week")
         => Ok(await _service.GetDeliveryByBrand(asOfDate, scopeType, scopeId,period));

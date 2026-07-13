@@ -15,8 +15,8 @@ public sealed class PharmaciesController : ControllerBase
     public PharmaciesController(IPharmaService service) => _service = service;
 
     [HttpGet("list")]
-    public async Task<ActionResult<IEnumerable<PharmacyDto>>> GetList()
-        => Ok(await _service.ListPharmacies());
+    public async Task<ActionResult<IEnumerable<PharmacyDto>>> GetList([FromQuery] string asOfDate, [FromQuery] string period = "week")
+        => Ok(await _service.ListPharmacies(asOfDate, period));
 
     [HttpGet("summary")]
     public async Task<ActionResult<PharmaSummaryDto>> GetSummary([FromQuery] string asOfDate, [FromQuery] string pharmacyId = "all", [FromQuery] string period = "week"
@@ -24,7 +24,7 @@ public sealed class PharmaciesController : ControllerBase
         => Ok(await _service.GetSummary(asOfDate, pharmacyId, period));
 
     [HttpGet("trends")]
-    public async Task<ActionResult<IEnumerable<PharmaTrendDto>>> GetTrend([FromQuery] string asOfDate, [FromQuery] string pharmacyId = "all", [FromQuery] string period = "week")
+    public async Task<ActionResult<PharmaTrendDto>> GetTrend([FromQuery] string asOfDate, [FromQuery] string pharmacyId = "all", [FromQuery] string period = "week")
         => Ok(await _service.GetTrend(asOfDate, pharmacyId, period));
 
     [HttpGet("margin")]
@@ -35,9 +35,19 @@ public sealed class PharmaciesController : ControllerBase
     public async Task<ActionResult<PharmaSalesQualityDto>> GetQuality([FromQuery] string asOfDate, [FromQuery] string pharmacyId = "all", [FromQuery] string period = "week")
         => Ok(await _service.GetQuality(asOfDate, pharmacyId, period));
 
-    [HttpGet("channels")]
-    public async Task<ActionResult<PharmaChannelDto>> GetChannels([FromQuery] string asOfDate, [FromQuery] string pharmacyId = "all", [FromQuery] string period = "week")
-        => Ok(await _service.GetChannels(asOfDate, pharmacyId, period));
+[HttpGet("channels")]
+public async Task<ActionResult<List<PharmaChannelDto>>> GetChannels(
+    [FromQuery] string asOfDate,
+    [FromQuery] string pharmacyId = "all",
+    [FromQuery] string period = "week")
+{
+    var result = await _service.GetChannels(
+        asOfDate,
+        pharmacyId,
+        period);
+
+    return Ok(result);
+}
 
     [HttpGet("payments")]
     public async Task<ActionResult<IEnumerable<PharmaPaymentDto>>> GetPayments([FromQuery] string asOfDate, [FromQuery] string pharmacyId = "all", [FromQuery] string period = "week")

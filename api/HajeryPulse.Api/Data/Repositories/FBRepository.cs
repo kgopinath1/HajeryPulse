@@ -10,7 +10,9 @@ namespace HajeryPulse.Api.Data.Repositories;
 
 public interface IFBRepository
 {
-    Task<IEnumerable<FBBrandDto>>      ListBrands();
+    Task<IEnumerable<FBBrandDto>>      ListBrands(string asOfDate,
+    
+    string period = "week");
     Task<IEnumerable<FBOutletDto>> ListOutlets(
     string asOfDate,
     string scopeType = "all",
@@ -21,10 +23,10 @@ public interface IFBRepository
     Task<IEnumerable<FBBrandDto>>      GetBrandSummary(string asOfDate, string scopeType, string? scopeId,string period);
     Task<IEnumerable<FBAggregatorDto>> GetAggregators(string asOfDate, string scopeType, string? scopeId,string period);
     Task<IEnumerable<FBPaymentDto>>    GetPayments(string asOfDate, string scopeType, string? scopeId,string period);
-    Task<FBChannelMixDto>              GetChannels(string asOfDate, string scopeType, string? scopeId,string period);
+    Task<List<FBChannelMixDto>>              GetChannels(string asOfDate, string scopeType, string? scopeId,string period);
     Task<IEnumerable<FBBrandDto>>      GetDeliveryByBrand(string asOfDate, string scopeType, string? scopeId,string period);
     Task<IEnumerable<FBOutletDto>>     GetTopOutlets(string asOfDate, string scopeType, string? scopeId, string period,int limit);
-    Task<IEnumerable<FBTrendDto>> GetTrend(string d, string st, string? sid, string per);
+    Task<FBTrendDto> GetTrend(string d, string st, string? sid, string per);
 
 }
 
@@ -49,23 +51,25 @@ public sealed class FBRepository : IFBRepository
     //    using var c = await _factory.OpenAsync();
     //    return await c.QueryAsync<FBBrandDto>("app.sp_GetFBBrands", commandType: CommandType.StoredProcedure);
     //}
+public async Task<IEnumerable<FBBrandDto>> ListBrands(string asOfDate, string period = "week")
+{
+    using var c = await _factory.OpenAsync();
+    var rows = await c.QueryAsync<dynamic>("app.sp_GetFBBrands",
+        new { AsOfDate = asOfDate, Period = period },
+        commandType: CommandType.StoredProcedure);
 
-    public async Task<IEnumerable<FBBrandDto>> ListBrands()
-    {
-        using var c = await _factory.OpenAsync();
-        var rows = await c.QueryAsync<dynamic>("app.sp_GetFBBrands", commandType: CommandType.StoredProcedure);
-        return rows.Select(row => new FBBrandDto(
-            Id: (string?)row.Id ?? "",
-            Name: (string?)row.Name ?? "",
-            AmtKwd: (decimal?)row.AmtKwd ?? 0m,
-            Color: (string?)row.Color ?? "#bdc3c7",
-            OutletCount: (int?)row.OutletCount ?? 0,
-            GrowthPct: 0m,
-            GrowthType: "WoW",
-            YoyPct: 0m,
-            DeliveryKwd: 0m
-        ));
-    }
+    return rows.Select(row => new FBBrandDto(
+        Id: (string?)row.Id ?? "",
+        Name: (string?)row.Name ?? "",
+        AmtKwd: (decimal?)row.AmtKwd ?? 0m,
+        Color: (string?)row.Color ?? "#bdc3c7",
+        OutletCount: (int?)row.OutletCount ?? 0,
+        GrowthPct: (decimal?)row.GrowthPct ?? 0m,
+        GrowthType: (string?)row.GrowthType ?? "WoW",
+        YoyPct: 0m,
+        DeliveryKwd: (decimal?)row.DeliveryKwd ?? 0m
+    ));
+}
 
 
     public async Task<IEnumerable<FBOutletDto>> ListOutlets(string d, string st, string? sid, string per = "week")
@@ -90,7 +94,7 @@ public sealed class FBRepository : IFBRepository
     public async Task<FBSummaryDto> GetSummary(string d, string st, string? sid, string per)
     {
         using var c = await _factory.OpenAsync();
-        var row = await c.QueryFirstAsync<dynamic>("app.sp_GetFBSummary",
+        var row = await c.QueryFirstOrDefaultAsync <dynamic>("app.sp_GetFBSummary",
             new { AsOfDate = d, ScopeType = st, ScopeId = sid, period = per }, commandType: CommandType.StoredProcedure);
         if (row == null)
             return new FBSummaryDto(
@@ -163,12 +167,27 @@ public sealed class FBRepository : IFBRepository
             new { AsOfDate = d, ScopeType = st, ScopeId = sid ,Period=per}, commandType: CommandType.StoredProcedure);
     }
 
-    public async Task<FBChannelMixDto> GetChannels(string d, string st, string? sid,string per)
-    {
-        using var c = await _factory.OpenAsync();
-        return await c.QueryFirstAsync<FBChannelMixDto>("app.sp_GetFBChannelMix",
-            new { AsOfDate = d, ScopeType = st, ScopeId = sid, Period = per }, commandType: CommandType.StoredProcedure);
-    }
+public async Task<List<FBChannelMixDto>> GetChannels(
+    string d,
+    string st,
+    string? sid,
+    string per)
+{
+    using var c = await _factory.OpenAsync();
+
+    var result = await c.QueryAsync<FBChannelMixDto>(
+        "app.sp_GetFBChannelMix",
+        new
+        {
+            AsOfDate = d,
+            ScopeType = st,
+            ScopeId = sid,
+            Period = per
+        },
+        commandType: CommandType.StoredProcedure);
+
+    return result.ToList();
+}
 
     public async Task<IEnumerable<FBBrandDto>> GetDeliveryByBrand(string d, string st, string? sid,string per)
     {
@@ -198,15 +217,35 @@ public sealed class FBRepository : IFBRepository
         ));
     }
 
-    public async Task<IEnumerable<FBTrendDto>> GetTrend(string d, string st, string? sid, string per)
-    {
-        using var c = await _factory.OpenAsync();
+  public async Task<FBTrendDto> GetTrend(
+    string d,
+    string st,
+    string? sid,
+    string per)
+{
+    using var c = await _factory.OpenAsync();
 
-        return await c.QueryAsync<FBTrendDto>(
-            "app.sp_GetFBTrend",
-            new { AsOfDate = d, ScopeType = st, ScopeId = sid, period = per },
-            commandType: CommandType.StoredProcedure
-        );
+    using var multi = await c.QueryMultipleAsync(
+        "app.sp_GetFBTrend",
+        new
+        {
+            AsOfDate = d,
+            ScopeType = st,
+            ScopeId = sid,
+            Period = per
+        },
+        commandType: CommandType.StoredProcedure);
+
+    var current = (await multi.ReadAsync<dynamic>())
+        .Select(x => (decimal)x.Value)
+        .ToArray();
+
+    var previous = (await multi.ReadAsync<dynamic>())
+        .Select(x => (decimal)x.Value)
+        .ToArray();
+
+    return new FBTrendDto(current, previous);
+}
 
 
     
@@ -222,4 +261,4 @@ public sealed class FBRepository : IFBRepository
 //    YoyPct: (decimal?)row.YoyPct ?? 0m,
 //    DeliveryKwd: (decimal?)row.DeliveryKwd ?? 0m
 //); 
-}
+

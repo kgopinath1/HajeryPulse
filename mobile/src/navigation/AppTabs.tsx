@@ -61,7 +61,7 @@ export function AppTabs(): React.JSX.Element {
        name="Pharmacies"
        component={PharmaciesScreen}
        options={{
-         title: 'Pharma',
+         title: 'Pharmacy',
          tabBarIcon: tabIcon('medkit-outline'),
        }}
      />
@@ -75,7 +75,7 @@ export function AppTabs(): React.JSX.Element {
        }}
      />
 
-     <Tab.Screen
+     {/* <Tab.Screen
        name="FinanceOps"
        component={FinanceOpsScreen}
        options={{
@@ -91,7 +91,7 @@ export function AppTabs(): React.JSX.Element {
          title: 'Inbox',
          tabBarIcon: tabIcon('mail-outline'),
        }}
-     />
+     /> */}
 
     </Tab.Navigator>
   );

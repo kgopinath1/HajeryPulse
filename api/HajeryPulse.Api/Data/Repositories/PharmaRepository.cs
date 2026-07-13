@@ -1,4 +1,5 @@
 using System.Data;
+using System.Linq;
 using Dapper;
 using HajeryPulse.Api.Models.Dto;
 
@@ -6,17 +7,17 @@ namespace HajeryPulse.Api.Data.Repositories;
 
 public interface IPharmaRepository
 {
-    Task<IEnumerable<PharmacyDto>>          ListPharmacies();
+    Task<IEnumerable<PharmacyDto>>          ListPharmacies(string asOfDate,  string period = "week");
     Task<PharmaSummaryDto>                  GetSummary(string asOfDate, string pharmacyId, string period = "week");
     Task<PharmaMarginDto>                   GetMargin(string asOfDate, string pharmacyId, string period = "week");
     Task<PharmaSalesQualityDto>             GetQuality(string asOfDate, string pharmacyId, string period = "week");
-    Task<PharmaChannelDto>                  GetChannels(string asOfDate, string pharmacyId, string period = "week");
+    Task<List<PharmaChannelDto>>            GetChannels(string asOfDate, string pharmacyId, string period = "week");
     Task<IEnumerable<PharmaPaymentDto>>     GetPayments(string asOfDate, string pharmacyId, string period = "week");
     Task<IEnumerable<PharmaCategoryDto>>    GetCategories(string asOfDate, string pharmacyId, int limit,string period = "week");
     Task<PharmaRxOtcMixDto>                 GetRxOtcMix(string asOfDate, string pharmacyId, string period = "week");
     Task<IEnumerable<PharmaDiscountDto>>    GetDiscountLeaderboard(string asOfDate, int limit,string period = "week");
     Task<IEnumerable<PharmacyDto>>          GetTopPharmacies(string asOfDate,int limit,string period = "week");
-    Task<IEnumerable<PharmaTrendDto>>        GetTrend(string asOfDate, string pharmacyId, string period = "week");
+    Task<PharmaTrendDto>        GetTrend(string asOfDate, string pharmacyId, string period = "week");
 }
 
 public sealed class PharmaRepository : IPharmaRepository
@@ -24,17 +25,19 @@ public sealed class PharmaRepository : IPharmaRepository
     private readonly IDbConnectionFactory _factory;
     public PharmaRepository(IDbConnectionFactory f) => _factory = f;
 
-    public async Task<IEnumerable<PharmacyDto>> ListPharmacies()
+    public async Task<IEnumerable<PharmacyDto>> ListPharmacies(string d, string period = "week")
     {
         using var c = await _factory.OpenAsync();
-        return await c.QueryAsync<PharmacyDto>("app.sp_GetPharmacyList", commandType: CommandType.StoredProcedure);
+        return await c.QueryAsync<PharmacyDto>("app.sp_GetPharmacyList",
+        new { AsOfDate = d, Period = period },
+        commandType: CommandType.StoredProcedure);
     }
 
     public async Task<PharmaSummaryDto> GetSummary(string d, string id, string period = "week")
 {
     using var c = await _factory.OpenAsync();
 
-    var row = await c.QueryFirstAsync<dynamic>(
+    var row = await c.QueryFirstOrDefaultAsync<dynamic>(
         "app.sp_GetPharmacySummary",
         new { AsOfDate = d, PharmacyId = id, Period = period },
         commandType: CommandType.StoredProcedure
@@ -74,27 +77,52 @@ public sealed class PharmaRepository : IPharmaRepository
     );
 }
 
-    public async Task<PharmaMarginDto> GetMargin(string d, string id, string period = "week")
-    {
-        using var c = await _factory.OpenAsync();
-        return await c.QueryFirstAsync<PharmaMarginDto>("app.sp_GetPharmacyMargin",
-            new { AsOfDate = d, PharmacyId = id, Period = period }, commandType: CommandType.StoredProcedure);
-    }
+public async Task<PharmaMarginDto> GetMargin(string d, string id, string period = "week")
+{
+    using var c = await _factory.OpenAsync();
+    using var multi = await c.QueryMultipleAsync("app.sp_GetPharmacyMargin",
+        new { AsOfDate = d, PharmacyId = id, Period = period }, commandType: CommandType.StoredProcedure);
 
-    public async Task<PharmaSalesQualityDto> GetQuality(string d, string id, string period = "week")
-    {
-        using var c = await _factory.OpenAsync();
-        return await c.QueryFirstAsync<PharmaSalesQualityDto>("app.sp_GetPharmacyQuality",
-            new { AsOfDate = d, PharmacyId = id, Period = period }, commandType: CommandType.StoredProcedure);
-    }
+    var s = await multi.ReadFirstAsync<dynamic>();
+    var trend = (await multi.ReadAsync<decimal>()).ToArray();
+    var trendLY = (await multi.ReadAsync<decimal>()).ToArray();
 
-    public async Task<PharmaChannelDto> GetChannels(string d, string id, string period = "week")
-    {
-        using var c = await _factory.OpenAsync();
-        return await c.QueryFirstAsync<PharmaChannelDto>("app.sp_GetPharmacyChannels",
-            new { AsOfDate = d, PharmacyId = id, Period = period }, commandType: CommandType.StoredProcedure);
-    }
+    return new PharmaMarginDto(
+        (decimal)s.GrossKwd, (decimal)s.DiscountKwd, (decimal)s.CogsKwd,
+        (decimal)s.MarginKwd, (decimal)s.NetSalesKwd,
+        (decimal)s.MarginPct, (decimal)s.MarginPctLY, (decimal)s.MarginDeviationPp,
+        (decimal)s.LyGrossKwd, (decimal)s.LyNetSalesKwd, (decimal)s.LyCogsKwd,
+        (decimal)s.GrossYoyPct, (decimal)s.CogsYoyPct, (decimal)s.GrossMarginYoyPct, (decimal)s.DiscountPct,
+        (string)s.GrowthType,
+        trend, trendLY);
+}
 
+public async Task<PharmaSalesQualityDto> GetQuality(string d, string id, string period = "week")
+{
+    using var c = await _factory.OpenAsync();
+    return await c.QueryFirstOrDefaultAsync<PharmaSalesQualityDto>("app.sp_GetPharmacyQuality",
+        new { AsOfDate = d, PharmacyId = id, Period = period }, commandType: CommandType.StoredProcedure);
+}
+
+public async Task<List<PharmaChannelDto>> GetChannels(
+    string d,
+    string id,
+    string period = "week")
+{
+    using var c = await _factory.OpenAsync();
+
+    var result = await c.QueryAsync<PharmaChannelDto>(
+        "app.sp_GetPharmacyChannels",
+        new
+        {
+            AsOfDate = d,
+            PharmacyId = id,
+            Period = period
+        },
+        commandType: CommandType.StoredProcedure);
+
+    return result.ToList();
+}
     public async Task<IEnumerable<PharmaPaymentDto>> GetPayments(string d, string id, string period = "week")
     {
         using var c = await _factory.OpenAsync();
@@ -112,7 +140,7 @@ public sealed class PharmaRepository : IPharmaRepository
     public async Task<PharmaRxOtcMixDto> GetRxOtcMix(string d, string id, string period = "week")
     {
         using var c = await _factory.OpenAsync();
-        return await c.QueryFirstAsync<PharmaRxOtcMixDto>("app.sp_GetPharmacyRxOtcMix",
+        return await c.QueryFirstOrDefaultAsync<PharmaRxOtcMixDto>("app.sp_GetPharmacyRxOtcMix",
             new { AsOfDate = d, PharmacyId = id, Period = period }, commandType: CommandType.StoredProcedure);
     }
 
@@ -130,12 +158,26 @@ public sealed class PharmaRepository : IPharmaRepository
             new { AsOfDate = d, Limit = limit ,Period=period}, commandType: CommandType.StoredProcedure);
     }
 
-    public async Task<IEnumerable<PharmaTrendDto>> GetTrend(string d, string id, string period = "week")
+    public async Task<PharmaTrendDto> GetTrend(string d, string id, string period = "week")
     {
         using var c = await _factory.OpenAsync();
-        return await c.QueryAsync<PharmaTrendDto>(
+        var rows = (await c.QueryAsync<dynamic>(
             "app.sp_GetPharmacyTrend",
             new { AsOfDate = d, PharmacyId = id, Period = period },
-            commandType: CommandType.StoredProcedure);
+            commandType: CommandType.StoredProcedure)).ToList();
+
+        var orderedRows = rows
+            .OrderBy(row => (int)row.Slot)
+            .ToList();
+
+        var current = orderedRows
+            .Select(row => (decimal?)(row.CurrentValue) ?? 0m)
+            .ToArray();
+
+        var previous = orderedRows
+            .Select(row => (decimal?)(row.PreviousValue) ?? 0m)
+            .ToArray();
+
+        return new PharmaTrendDto(current, previous);
     }
 }

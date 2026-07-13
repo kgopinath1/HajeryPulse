@@ -19,19 +19,21 @@ import { Chip } from '@components/Chip';
 import { KpiTile } from '@components/KpiTile';
 import { SectionTitle } from '@components/SectionTitle';
 import { SegTabs } from '@components/SegTabs';
-import { Sparkline } from '@components/Sparkline';
+import { MultiSparkline } from '@components/MultiSparkline';
 import { StackedBar } from '@components/StackedBar';
 import { AsOnDateBar } from '@components/AsOnDateBar';
 import { AsOnDateModal } from '@components/AsOnDateModal';
 import { PickerModal } from '@components/PickerModal';
+import { getTrendLabels, getPeriodLabel } from '@utils/labels';
 import { Row } from '@components/Row';
+import { NoDataCard } from '@components/NoDataCard';
 import { pharmaApi } from '@api/pharma';
 import { defaultAsOfDate } from '@utils/date';
 import { fmtKwd, fmtPct, fmtInt, fmtYoy, fmtYoyPp, fmtKwdAsIs, fmtKwdSmallVal } from '@utils/format';
 import {
   Pharmacy, PharmaSummary, PharmaMargin, SalesQuality,
   PharmaChannel, PharmaPaymentRow, PharmaCategoryRow,
-  PharmaDiscountRow, PharmaRxOtcMix, PharmaTrendPoint,
+  PharmaDiscountRow, PharmaRxOtcMix, PharmaTrend,
 } from '@types/domain';
 
 export function PharmaciesScreen(): React.JSX.Element {
@@ -45,19 +47,21 @@ export function PharmaciesScreen(): React.JSX.Element {
   const [summary, setSummary] = useState<PharmaSummary | null>(null);
   const [margin, setMargin] = useState<PharmaMargin | null>(null);
   const [quality, setQuality] = useState<SalesQuality | null>(null);
-  const [channels, setChannels] = useState<PharmaChannel | null>(null);
+const [channels, setChannels] = useState<PharmaChannel[]>([]);
   const [payments, setPayments] = useState<PharmaPaymentRow[]>([]);
   const [categories, setCategories] = useState<PharmaCategoryRow[]>([]);
   const [rxMix, setRxMix] = useState<PharmaRxOtcMix | null>(null);
   const [discounts, setDiscounts] = useState<PharmaDiscountRow[]>([]);
   const [topPharm, setTopPharm] = useState<Pharmacy[]>([]);
-  const [trend, setTrend] = useState<number[]>([]);
+  const [trend, setTrend] = useState<PharmaTrend>({ current: [], previous: [] });
 
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
   // Load list of pharmacies once
-  useEffect(() => { pharmaApi.list().then(setPharmacies); }, []);
+useEffect(() => {
+  pharmaApi.list(asOfDate, period).then(setPharmacies);
+}, [asOfDate, period]);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -78,7 +82,10 @@ export function PharmaciesScreen(): React.JSX.Element {
       setSummary(s); setMargin(m); setQuality(q); setChannels(ch);
       setPayments(pay); setCategories(cats); setRxMix(rx);
       setDiscounts(disc); setTopPharm(top);
-      setTrend((tr ?? []).map((x: PharmaTrendPoint) => x.value ?? 0));
+      setTrend({
+        current: tr?.current ?? [],
+        previous: tr?.previous ?? [],
+      });
       console.log('=== API RESPONSES ===', { s, m, disc, top, cats, q, ch, pay, rx, tr });
     } catch (err) {
       console.error('=== API ERROR ===', err);
@@ -92,6 +99,64 @@ export function PharmaciesScreen(): React.JSX.Element {
     pharmacies.find(p => p.id === pharmacyId)?.name ?? 'All Pharmacies';
   const offlineCount =
     (summary?.storesTotal ?? 0) - (summary?.storesActive ?? 0);
+ const periodLabel = getPeriodLabel(period);
+    const hasData =
+  (summary?.revenueKwd ?? 0) > 0 ||
+  (summary?.transactions ?? 0) > 0 ||
+
+  (margin && (margin.grossKwd ?? 0) > 0) ||
+
+  (quality && (quality.grossKwd ?? 0) > 0) ||
+
+  (rxMix && ((rxMix.rxKwd ?? 0) > 0 || (rxMix.otcKwd ?? 0) > 0)) ||
+
+  (
+   channels.some(c => c.kwd > 0)
+  ) ||
+
+  payments.some(p => (p.kwd ?? 0) > 0) ||
+
+  categories.some(c => (c.kwd ?? 0) > 0) ||
+
+  discounts.some(d => (d.discountKwd ?? 0) > 0) ||
+
+  topPharm.some(p => (p.amtKwd ?? 0) > 0);
+
+const showNoData = !loading && !hasData;
+const getChannelColor = (code: string) => {
+  switch (code.toLowerCase()) {
+    case 'instore':
+      return theme.colors.teal;
+
+    case 'callcenter':
+      return theme.colors.blue;
+
+    case 'aggregator':
+      return theme.colors.amber;
+
+      case 'website':
+      return theme.colors.pink;
+
+    default:
+      return theme.colors.gold;
+  }
+};
+
+
+const getTrendLabels = (period: string, length: number): string[] => {
+  switch (period) {
+    case 'week':
+      return ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+    case 'month':
+      return Array.from({ length }, (_, i) => `W${i + 1}`);
+    case 'ytd':
+    default:
+      return [
+        'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+        'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
+      ];
+  }
+};
 
   if (loading && !summary) {
     return <SafeAreaView style={styles.center}><ActivityIndicator color={theme.colors.gold} /></SafeAreaView>;
@@ -135,197 +200,269 @@ export function PharmaciesScreen(): React.JSX.Element {
           ]}
         />
 
+ {showNoData ? (
+          <NoDataCard />
+        ) : (
+          <>
 
-
-        {/* Revenue card */}
-        {summary && (
-          <Card>
-            <Text style={styles.eyebrow}>REVENUE · {period.toUpperCase()} TO DATE</Text>
-            <Text style={styles.hero}>{fmtKwd(summary.revenueKwd)}</Text>
-            <View style={{ marginTop: 4 }}>
-              <Chip label={fmtYoy(summary.growthPct, summary.growthType)} tone={summary.growthPct >= 0 ? 'green' : 'red'} />
-            </View>
-            {period !== 'day' && (
-              <View style={{ marginTop: 12 }}>
-                <Sparkline values={trend.length ? trend : [0]} color={theme.colors.teal} height={120} />
-                <Text style={{ color: theme.colors.text2 }}>
-                  {period === 'week' && 'Last 7 days'}
-                  {period === 'month' && 'Weekly trend'}
-                  {period === 'ytd' && 'Monthly trend'}
-                </Text>
-              </View>
-            )}
-          </Card>
-        )}
+      {/* Revenue card */}
+{summary ? (
+  <Card>
+    <Text style={styles.eyebrow}>REVENUE · {period.toUpperCase()} TO DATE</Text>
+    <Text style={styles.hero}>{fmtKwd(summary.revenueKwd)}</Text>
+    <View style={{ marginTop: 4 }}>
+      <Chip label={fmtYoy(summary.growthPct, summary.growthType)} tone={summary.growthPct >= 0 ? 'green' : 'red'} />
+    </View>
+    {period !== 'day' && (
+      <View style={{ marginTop: 12 }}>
+        <MultiSparkline
+          primary={trend.current ?? []}
+          secondary={trend.previous ?? []}
+          primaryColor={theme.colors.teal}
+          secondaryColor={theme.colors.blue}
+          labels={getTrendLabels(period, trend.current?.length ?? 0)}
+          height={120}
+        />
+        <View style={styles.marginLegend}>
+          <View style={styles.legendItem}>
+            <View style={[styles.legendDot, { backgroundColor: theme.colors.teal }]} />
+            <Text style={styles.legendText}>Current Period</Text>
+          </View>
+          <View style={styles.legendItem}>
+            <View style={[styles.legendDot, { backgroundColor: theme.colors.blue }]} />
+            <Text style={styles.legendText}>Previous Period</Text>
+          </View>
+        </View>
+        <Text style={{ color: theme.colors.text2 }}>
+          {period === 'week' && 'Last 7 days'}
+          {period === 'month' && 'Weekly trend'}
+          {period === 'ytd' && 'Monthly trend'}
+        </Text>
+      </View>
+    )}
+  </Card>
+) : (
+  <Card>
+    <Text style={styles.emptyText}>No revenue data available</Text>
+  </Card>
+)}
+   
 
         {/* KPI grid */}
-        {summary && (
+        {summary ? (
 
           <View style={styles.kpiGrid}>
             <KpiTile label="Transactions" value={fmtInt(summary.transactions)} delta={{ value: `${fmtPct(summary.deltaTxns)}`, positive: true }} />
-            <KpiTile label="Basket size" value={fmtKwd(summary.basketSizeKwd)} delta={{ value: `${fmtPct(summary.deltaBasketSizeKwd, 1)}`, positive: true }} />
-            <KpiTile label="Active stores" value={
-              <Text>{summary.storesActive}<Text style={{ fontSize: 12, color: theme.colors.text2 }}>{` / ${summary.storesTotal}`}</Text></Text>
-            }
-              /* chip=
-              {{ label: pharmacyId === 'all' ? '1 offline' : 'live', tone: pharmacyId === 'all' ? 'amber' : 'green' }}  */
-              chip={{
-                label:
-                  pharmacyId === 'all'
-                    ? `${offlineCount} offline`
-                    : 'live',
-                tone:
-                  pharmacyId === 'all' && offlineCount > 0
-                    ? 'amber'
-                    : 'green'
-              }}
+            <KpiTile label="Check Avg." value={fmtKwd(summary.basketSizeKwd)} delta={{ value: `${fmtPct(summary.deltaBasketSizeKwd, 1)}`, positive: true }} />
+            <KpiTile
+              label="Active stores"
+              value={
+                <Text style={{ fontSize: 35 }}>
+                  {summary.storesActive}
+                </Text>
+              }
             />
-            <KpiTile label="Rx share" value={fmtPct(rxMix.rxPct, 0)} chip={{ label: `OTC ${fmtPct(rxMix.otcPct, 0)}`, tone: 'teal' }} />
+            <KpiTile label="Rx share" value={fmtPct(rxMix.rxPct, 2)} chip={{ label: `OTC ${fmtPct(rxMix.otcPct, 2)}`, tone: 'teal' }} />
           </View>
+          ) : (
+      <Card>
+        <Text style={styles.emptyText}>No KPI data available</Text>
+      </Card>
         )}
 
-        {/* Rx vs OTC */}
-        {rxMix && (
-          <>
-            <SectionTitle title="Rx vs OTC Mix" rightLabel={pharmacyId === 'all' ? 'All pharmacies' : currentPharmacyName} />
-            <Card>
-              <Text style={styles.eyebrow}>PRESCRIPTION (Rx) SHARE</Text>
-              <Text style={[styles.hero, { color: theme.colors.teal }]}>{fmtPct(rxMix.rxPct)}</Text>
-              <Text style={styles.subtle}>OTC {fmtPct(rxMix.otcPct)}</Text>
-              <View style={{ marginTop: 12 }}>
-                <StackedBar
-                  segments={[
-                    { pct: rxMix.rxPct, color: theme.colors.teal },
-                    { pct: rxMix.otcPct, color: theme.colors.gold },
-                  ]}
-                  height={16}
-                />
-              </View>
-              <View style={styles.kpiGridInner}>
-                <KpiTile
-                  label="Prescription (Rx)"
-                  value={fmtKwd(rxMix.rxKwd)}
-                  delta={{
+      {/* Rx vs OTC */}
+<SectionTitle title="Rx vs OTC Mix" rightLabel={pharmacyId === 'all' ? 'All pharmacies' : currentPharmacyName} />
+{rxMix ? (
+  <Card>
+    <Text style={styles.eyebrow}>PRESCRIPTION (Rx) SHARE</Text>
+    <Text style={[styles.hero, { color: theme.colors.teal }]}>{fmtPct(rxMix.rxPct, 2)}</Text>
+    <Text style={styles.subtle}>OTC {fmtPct(rxMix.otcPct, 2)}</Text>
 
-                    value: `${Math.abs(rxMix.rxYoyPct || 0).toFixed(1)}% ${rxMix.growthType}`,
-                    positive: rxMix.rxYoyPct >= 0
+    <View style={{ marginTop: 12 }}>
+      <View style={{ position: 'relative', justifyContent: 'center' }}>
+        <StackedBar
+          segments={[
+            { pct: rxMix.rxPct, color: theme.colors.teal },
+            { pct: rxMix.otcPct, color: theme.colors.gold },
+          ]}
+          height={16}
+        />
+        <Text style={{ position: 'absolute', left: 8, color: '#0f0f0f', fontSize: 10, fontWeight: '700' }}>
+          Rx
+        </Text>
+        <Text style={{ position: 'absolute', right: 8, color: '#0f0f0f', fontSize: 10, fontWeight: '700' }}>
+          OTC
+        </Text>
+      </View>
+    </View>
 
-                  }}
-                />
+    <View style={styles.kpiGridInner}>
+      <KpiTile
+        label={
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+            <View style={{ width: 8, height: 8, borderRadius: 2, backgroundColor: theme.colors.teal }} />
+            <Text style={{ color: theme.colors.text2, fontSize: 11 }}>Prescription (Rx)</Text>
+          </View>
+        }
+        value={fmtKwd(rxMix.rxKwd)}
+        valueColor={theme.colors.teal}
+        delta={{
+          value: `${Math.abs(rxMix.rxYoyPct || 0).toFixed(2)}% ${rxMix.growthType}`,
+          positive: rxMix.rxYoyPct >= 0,
+        }}
+      />
+      <KpiTile
+        label={
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+            <View style={{ width: 8, height: 8, borderRadius: 2, backgroundColor: theme.colors.gold }} />
+            <Text style={{ color: theme.colors.text2, fontSize: 11 }}>Over-the-counter (OTC)</Text>
+          </View>
+        }
+        value={fmtKwd(rxMix.otcKwd)}
+        valueColor={theme.colors.gold}
+        delta={{
+          value: `${Math.abs(rxMix.otcYoyPct || 0).toFixed(2)}% ${rxMix.growthType}`,
+          positive: rxMix.otcYoyPct >= 0,
+        }}
+      />
+    </View>
+  </Card>
+) : (
+  <Card>
+    <Text style={styles.emptyText}>No Rx/OTC data available</Text>
+  </Card>
+)}
 
-                <KpiTile
-                  label="Over-the-counter"
-                  value={fmtKwd(rxMix.otcKwd)}
-                  delta={{
+       {/* Margin */}
+<SectionTitle title="Margin Analysis" rightLabel={pharmacyId === 'all' ? 'All pharmacies' : currentPharmacyName} />
+{margin ? (
+  <Card>
+    <Text style={styles.eyebrow}>GROSS MARGIN %</Text>
+    <Text style={[styles.hero, { color: theme.colors.goldSoft }]}>{fmtPct(margin.marginPct)}</Text>
+    <View style={styles.marginHeaderRow}>
+      <Text style={styles.subtle}>vs {fmtPct(margin.marginPctLY)} last period selected</Text>
+      <Chip label={`${fmtYoyPp(margin.marginDeviationPp)} ${periodLabel}`} tone={margin.marginDeviationPp >= 0 ? 'green' : 'red'} />
+    </View>
 
-                    value: `${Math.abs(rxMix.otcYoyPct || 0).toFixed(1)}% ${rxMix.growthType}`,
-                    positive: rxMix.otcYoyPct >= 0
+    {period !== 'day' && (
+      <View style={styles.marginTrend}>
+        <MultiSparkline
+          primary={margin.trend ?? []}
+          secondary={margin.trendLY ?? []}
+          primaryColor={theme.colors.goldSoft}
+          secondaryColor={theme.colors.blue}
+          labels={getTrendLabels(period, margin.trend?.length ?? 0)}
+          height={90}
+        />
+        <View style={styles.marginLegend}>
+          <View style={styles.legendItem}>
+            <View style={[styles.legendDot, { backgroundColor: theme.colors.goldSoft }]} />
+            <Text style={styles.legendText}>Margin % this period</Text>
+          </View>
+          <View style={styles.legendItem}>
+            <View style={[styles.legendDot, { backgroundColor: theme.colors.blue }]} />
+            <Text style={styles.legendText}>Last period</Text>
+          </View>
+        </View>
+      </View>
+    )}
 
-                  }}
-                />
-              </View>
-            </Card>
-          </>
-        )}
+    <View style={styles.kpiGridInner}>
+      <KpiTile
+        label="Gross sales"
+        value={fmtKwd(margin.grossKwd)}
+        delta={{
+          value: (
+            <>
+              <Text style={{ color: margin.grossYoyPct >= 0 ? theme.colors.green : theme.colors.red }}>{fmtPct(margin.grossYoyPct)}</Text>
+              <Text style={{ color: theme.colors.text2 }}> {periodLabel}</Text>
+            </>
+          ),
+          positive: margin.grossYoyPct >= 0,
+        }}
+      />
 
-        {/* Margin */}
-        {margin && (
-          <>
+      <KpiTile
+        label="Discount"
+        value={fmtKwd(margin.discountKwd)}
+        chip={{ label: `${fmtPct(margin.discountPct)} of Gross` }}
+      />
 
-            <SectionTitle title="Margin Analysis" rightLabel={pharmacyId === 'all' ? 'All pharmacies' : currentPharmacyName} />
-            <Card>
-              <Text style={styles.eyebrow}>GROSS MARGIN %</Text>
-              <Text style={[styles.hero, { color: theme.colors.goldSoft }]}>{fmtPct(margin.marginPct)}</Text>
-              <View style={styles.marginHeaderRow}>
-                <Text style={styles.subtle}>vs {fmtPct(margin.marginPctLY)} last year</Text>
-                <Chip label={`${fmtYoyPp(margin.marginPct - margin.marginPctLY)} YoY`} tone={margin.marginPct - margin.marginPctLY >= 0 ? 'green' : 'red'} />
-              </View>
-              <View style={styles.kpiGridInner}>
-                {
-                  // Compute YoY percentages using last-year values returned by the API
-                  (() => {
-                    const grossYoY = margin.lyGrossKwd ? ((margin.grossKwd - margin.lyGrossKwd) / Math.abs(margin.lyGrossKwd)) * 100 : NaN;
-                    const cogsYoY = margin.lyCogsKwd ? ((margin.cogsKwd - margin.lyCogsKwd) / Math.abs(margin.lyCogsKwd)) * 100 : NaN;
+      <KpiTile
+        label="Cost of sales"
+        value={fmtKwd(margin.cogsKwd)}
+        delta={{
+          value: (
+            <>
+              <Text style={{ color: margin.cogsYoyPct >= 0 ? theme.colors.green : theme.colors.red }}>{fmtPct(margin.cogsYoyPct)}</Text>
+              <Text style={{ color: theme.colors.text2 }}> {periodLabel}</Text>
+            </>
+          ),
+          positive: margin.cogsYoyPct >= 0,
+        }}
+      />
 
+      <KpiTile
+        label="Margin"
+        value={fmtKwd(margin.marginKwd)}
+        delta={{
+          value: (
+            <>
+              <Text style={{ color: margin.grossMarginYoyPct >= 0 ? theme.colors.green : theme.colors.red }}>{fmtPct(margin.grossMarginYoyPct)}</Text>
+              <Text style={{ color: theme.colors.text2 }}> {periodLabel}</Text>
+            </>
+          ),
+          positive: margin.grossMarginYoyPct >= 0,
+        }}
+      />
 
-                    const lyMarginKwd = (margin.lyNetSalesKwd ?? 0) - (margin.lyCogsKwd ?? 0);
-                    const marginYoY = lyMarginKwd ? ((margin.marginKwd - lyMarginKwd) / Math.abs(lyMarginKwd)) * 100 : NaN;
-                    const discountPct = margin.grossKwd === 0 ? NaN : (margin.discountKwd / margin.grossKwd) * 100;
+      <KpiTile
+        label="NET SALES"
+        value={fmtKwd(margin.netSalesKwd)}
+        valueColor={theme.colors.teal}
+        subtitle="After discount & returns"
+      />
 
-                    return (
-                      <>
-                        <KpiTile
-                          label="Gross sales"
-                          value={fmtKwd(margin.grossKwd)}
-                          delta={{
-                            value: (
-                              <>
-                                <Text style={{ color: grossYoY >= 0 ? theme.colors.green : theme.colors.red }}>{fmtPct(grossYoY)}</Text>
-                                <Text style={{ color: theme.colors.text2 }}> vs LY</Text>
-                              </>
-                            ),
-                            positive: grossYoY >= 0,
-                          }}
-                        />
-                        <KpiTile label="Discount" value={`${fmtKwd(margin.discountKwd)}`} chip={{ label: fmtPct(discountPct) + " of Gross" }} />
-                        <KpiTile label="Cost of sales"
-                          value={fmtKwd(margin.cogsKwd)}
-                          delta={{
-                            value: (
-                              <>
-                                <Text style={{ color: cogsYoY >= 0 ? theme.colors.green : theme.colors.red }}>{fmtPct(cogsYoY)}</Text>
-                                <Text style={{ color: theme.colors.text2 }}> vs LY</Text>
-                              </>
-                            ),
-                            positive: cogsYoY >= 0,
-                          }}
-                        />
-                        <KpiTile label="Margin" value={fmtKwd(margin.marginKwd)} delta={{
-                          value: (
-                            <>
-                              <Text style={{ color: marginYoY >= 0 ? theme.colors.green : theme.colors.red }}>{fmtPct(marginYoY)}</Text>
-                              <Text style={{ color: theme.colors.text2 }}> vs LY</Text>
-                            </>
-                          ),
-                          positive: marginYoY >= 0,
-                        }}
-                        />
-
-                      </>
-                    );
-                  })()
-                }
-                <KpiTile
-                  label="NET SALES"
-                  value={fmtKwd(margin.netSalesKwd)}
-                  valueColor={theme.colors.teal}
-                  subtitle="After discount & returns"
-                />
-                <KpiTile
-                  label="YOY DEVIATION"
-                  value={`${margin.marginPct - margin.marginPctLY > 0 ? '+' : ''}${(margin.marginPct - margin.marginPctLY).toFixed(1)} pp`}
-                  valueColor={theme.colors.green}
-                  subtitle="Margin expansion"
-                />
-
-              </View>
-            </Card>
-          </>
-        )}
+      <KpiTile
+        label={`${periodLabel} DEVIATION`}
+        value={`${margin.marginDeviationPp > 0 ? '+' : ''}${margin.marginDeviationPp.toFixed(1)} %`}
+        valueColor={
+          margin.marginDeviationPp > 0
+            ? theme.colors.green
+            : margin.marginDeviationPp < 0
+              ? theme.colors.red
+              : theme.colors.text2
+        }
+        subtitle={
+          margin.marginDeviationPp > 0
+            ? 'Margin expansion'
+            : margin.marginDeviationPp < 0
+              ? 'Margin contraction'
+              : 'No change'
+        }
+      />
+    </View>
+  </Card>
+) : (
+  <Card>
+    <Text style={styles.emptyText}>No margin data available</Text>
+  </Card>
+)}
 
         {/* Sales Quality */}
-        {quality && (
+        <SectionTitle title="Sales Quality" rightLabel="Returns analysis" />
+        {quality ? (
           <>
-            <SectionTitle title="Sales Quality" rightLabel="Returns analysis" />
+            
             <Card>
               <Text style={styles.eyebrow}>GROSS → NET → RETURNS</Text>
               <Text style={styles.hero}>{fmtKwd(quality.netKwd)}</Text>
               <View style={styles.marginHeaderRow}>
                 <Text style={styles.subtle}>{fmtPct(quality.netPct)} of gross retained</Text>
-<Chip
-  label={`${quality.netPctPp >= 0 ? '▲' : '▼'} ${Math.abs(quality.netPctPp || 0).toFixed(1)} pp ${quality.growthType}`} 
-  tone={quality.netPctPp >= 0 ? 'green' : 'red'} 
-/>              </View>
+                <Chip
+                  label={`${quality.netPctPp >= 0 ? '▲' : '▼'} ${Math.abs(quality.netPctPp || 0).toFixed(1)} pp ${quality.growthType}`}
+                  tone={quality.netPctPp >= 0 ? 'green' : 'red'}
+                />              </View>
               <View style={{ marginTop: 12 }}>
                 {/* Gross sales */}
                 <View style={{ marginBottom: 12 }}>
@@ -365,92 +502,142 @@ export function PharmaciesScreen(): React.JSX.Element {
               <View style={{ marginTop: 12, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
                 <Text style={{ color: theme.colors.red, fontWeight: '600', fontSize: 12 }}>Returns {fmtPct(quality.returnsPct)} of gross</Text>
                 <Chip
-  label={`${quality.returnsPctPp >= 0 ? '▼' : '▲'} ${Math.abs(quality.returnsPctPp || 0).toFixed(1)} pp ${quality.growthType}`}
-  tone={quality.returnsPctPp >= 0 ? 'red' : 'green'}
-/>
+                  label={`${quality.returnsPctPp >= 0 ? '▼' : '▲'} ${Math.abs(quality.returnsPctPp || 0).toFixed(1)} pp ${quality.growthType}`}
+                  tone={quality.returnsPctPp >= 0 ? 'red' : 'green'}
+                />
 
               </View>
             </Card>
           </>
-        )}
+          ) : (
+      <Card>
+        <Text style={styles.emptyText}>No sales quality data available</Text>
+      </Card>
+    )}
+      
 
-        {/* Channels */}
-        {channels && (
-          <>
-            <SectionTitle title="Sales by Channel" />
-            <Card>
-              {(() => {
-                const total = channels.instoreKwd + channels.callcenterKwd + channels.aggregatorKwd;
-                const instorePct = total > 0 ? (channels.instoreKwd / total) * 100 : 0;
-                const callcenterPct = total > 0 ? (channels.callcenterKwd / total) * 100 : 0;
-                const aggregatorPct = total > 0 ? (channels.aggregatorKwd / total) * 100 : 0;
+      {/* Channels */}
+<SectionTitle title="Sales by Channel" />
 
-                return (
-                  <>
-                    {/* Legend with percentages */}
-                    <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 16, marginBottom: 12 }}>
-                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                        <View style={{ width: 12, height: 12, borderRadius: 2, backgroundColor: theme.colors.teal }} />
-                        <Text style={{ fontSize: theme.fontSize.sm, color: theme.colors.text2 }}>Instore <Text style={{ fontWeight: '700', color: theme.colors.text0 }}>{instorePct.toFixed(0)}%</Text></Text>
-                      </View>
-                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                        <View style={{ width: 12, height: 12, borderRadius: 2, backgroundColor: theme.colors.blue }} />
-                        <Text style={{ fontSize: theme.fontSize.sm, color: theme.colors.text2 }}>Call center <Text style={{ fontWeight: '700', color: theme.colors.text0 }}>{callcenterPct.toFixed(0)}%</Text></Text>
-                      </View>
-                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                        <View style={{ width: 12, height: 12, borderRadius: 2, backgroundColor: theme.colors.amber }} />
-                        <Text style={{ fontSize: theme.fontSize.sm, color: theme.colors.text2 }}>Aggregator <Text style={{ fontWeight: '700', color: theme.colors.text0 }}>{aggregatorPct.toFixed(0)}%</Text></Text>
-                      </View>
-                    </View>
+{channels.length > 0 ? (
+  <Card>
+    {/* Legend */}
+    <View
+      style={{
+        flexDirection: 'row',
+     flexWrap: 'wrap',
+        gap:16,
+        marginBottom: 12,
+     }}
+    >
+      {channels.map(channel => (
+        <View
+          key={channel.channelCode}
+          style={{
+            flexDirection: 'row',
+            alignItems: 'center',
+            gap: 6,
+         }}
+        >
+          <View
+      style={{
+              width: 12,
+              height: 12,
+          borderRadius: 2,
+           backgroundColor: getChannelColor(channel.channelCode),
+            }}
+          />
 
-                    {/* Stacked bar */}
-                    <View style={{ marginBottom: 12 }}>
-                      <StackedBar
-                        segments={[
-                          { pct: instorePct, color: theme.colors.teal },
-                          { pct: callcenterPct, color: theme.colors.blue },
-                          { pct: aggregatorPct, color: theme.colors.amber },
-                        ]}
-                        height={12}
-                      />
-                    </View>
+          <Text
+            style={{
+              fontSize: theme.fontSize.sm,
+              color: theme.colors.text2,
+            }}
+          >
+            {channel.channelName}{' '}
+            <Text
+              style={{
+                fontWeight: '700',
+                color: theme.colors.text0,
+              }}
+            >
+              {channel.pct.toFixed(0)}%
+            </Text>
+          </Text>
+        </View>
+      ))}
+    </View>
 
-                    {/* Channel values */}
-                    <View style={{ gap: 8 }}>
-                      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                          <View style={{ width: 10, height: 10, borderRadius: 1, backgroundColor: theme.colors.teal }} />
-                          <Text style={{ color: theme.colors.text1 }}>Instore</Text>
-                        </View>
-                        <Text style={{ color: theme.colors.text0, fontFamily: theme.fonts.numeric, fontWeight: '700' }}>{fmtKwd(channels.instoreKwd)}</Text>
-                      </View>
-                      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                          <View style={{ width: 10, height: 10, borderRadius: 1, backgroundColor: theme.colors.blue }} />
-                          <Text style={{ color: theme.colors.text1 }}>Call center</Text>
-                        </View>
-                        <Text style={{ color: theme.colors.text0, fontFamily: theme.fonts.numeric, fontWeight: '700' }}>{fmtKwd(channels.callcenterKwd)}</Text>
-                      </View>
-                      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                          <View style={{ width: 10, height: 10, borderRadius: 1, backgroundColor: theme.colors.amber }} />
-                          <Text style={{ color: theme.colors.text1 }}>Aggregator</Text>
-                        </View>
-                        <Text style={{ color: theme.colors.text0, fontFamily: theme.fonts.numeric, fontWeight: '700' }}>{fmtKwd(channels.aggregatorKwd)}</Text>
-                      </View>
-                    </View>
-                  </>
-                );
-              })()}
-            </Card>
-          </>
-        )}
+    {/* Stacked Bar */}
+    <View style={{ marginBottom: 12 }}>
+      <StackedBar
+        segments={channels.map(channel => ({
+          pct: Number(channel.pct),
+          color: getChannelColor(channel.channelCode),
+        }))}
+        height={12}
+      />
+    </View>
+
+    {/* Channel Values */}
+    <View style={{ gap: 8 }}>
+   {channels.map(channel => (
+        <View
+          key={channel.channelCode}
+          style={{
+            flexDirection: 'row',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+          }}
+        >
+          <View
+            style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              gap: 6,
+            }}
+          >
+            <View
+              style={{
+                width: 10,
+                height: 10,
+                borderRadius: 1,
+                backgroundColor: getChannelColor(channel.channelCode),
+              }}
+            />
+
+            <Text style={{ color: theme.colors.text1 }}>
+              {channel.channelName}
+            </Text>
+          </View>
+
+          <Text
+            style={{
+              color: theme.colors.text0,
+              fontFamily: theme.fonts.numeric,
+              fontWeight: '700',
+            }}
+          >
+            {fmtKwdAsIs(channel.kwd)}
+          </Text>
+        </View>
+      ))}
+    </View>
+  </Card>
+) : (
+  <Card>
+    <Text style={styles.emptyText}>
+      No channel data available
+    </Text>
+  </Card>
+)}
 
         {/* Payments */}
 
         <SectionTitle title="Sales by Payment Type" />
         <Card>
-          {payments.map(p => (
+          {payments.length > 0 ? (
+          payments.map(p => (
 
             <View key={p.key} style={styles.payRow2}>
               <View
@@ -481,7 +668,7 @@ export function PharmaciesScreen(): React.JSX.Element {
                   fontWeight: '700',
                 }}
               >
-                {fmtKwd(p.kwd)}
+                {fmtKwdAsIs(p.kwd)}
               </Text>
 
               <Text
@@ -493,79 +680,99 @@ export function PharmaciesScreen(): React.JSX.Element {
                 {fmtPct(p.pct)}
               </Text>
             </View>
+))
+      ) : (
+        <Text style={styles.emptyText}>No payment data for this period</Text>
+      )}
+    </Card>
 
-          ))}
-        </Card>
 
-
-        {/* Top 10 Pharmacies */}
-        <SectionTitle title="Top 10 Pharmacies" />
-
-        {topPharm && topPharm.length > 0 ? (
-          topPharm.map((p, i) => {
-            // console.log(p.id, p.name, p.amtKwd, i); // 👈 Log here
-
-            return (
-              <Row
-                key={p.id}
-                avatar={{
-                  initials: String(i + 1).padStart(2, '0'),
-                  color: rankColor(i + 1),
-                }}
-                title={p.name}
-                subtitle={`${fmtKwd(p.amtKwd)} · ${period} revenue`}
-                amount={fmtKwd(p.amtKwd)}
-                delta={{
-                  label: '▲ ' + Math.round(8 + i * 0.5) + '%',
-                  tone: 'green',
-                }}
-              />
-            );
-          })
-        ) : (
-          <Text style={{ color: theme.colors.text2 }}>
-            No pharmacy data available
-          </Text>
-        )}
-
-        {/* Discount leaderboard */}
-        <SectionTitle title="Highest Discount by Pharmacy" rightLabel="Top 10" />
-        <Card>
-          {discounts.length > 0 && (() => {
-            const maxDiscount = Math.max(...discounts.map(d => d.discountKwd), 1);
-            return discounts.map((d, index) => (
-              <View
-                key={d.id}
-                style={[
-                  styles.discRow,
-                  index === discounts.length - 1 && styles.discRowLast,
-                ]}
-              >
-                <View style={styles.discHeader}>
-                  <Text style={styles.discName}>{d.name}</Text>
-                  <Text style={styles.discValue}>
-                    {fmtKwdSmallVal(d.discountKwd)} <Text style={styles.discPct}>({fmtPct(d.ratePct)})</Text>
-                  </Text>
-                </View>
-                <View style={styles.discBarBg}>
-                  <View style={[styles.discBarFill, { width: `${Math.round((d.discountKwd / maxDiscount) * 100)}%` }]} />
-                </View>
-              </View>
-            ));
-          })()}
-        </Card>
-
-        {/* Top 10 Categories */}
+  {/* Top 10 Categories */}
         <SectionTitle title="Top 10 Categories" />
         <Card>
-          {categories.map(c => (
+          {categories.length > 0 ? (
+          categories.map(c => (
             <View key={c.key} style={styles.payRow2}>
               <Text style={{ color: theme.colors.text0, flex: 1 }}>{c.label}</Text>
-              <Text style={{ width: 90, textAlign: 'left', color: theme.colors.text0, fontFamily: theme.fonts.numeric, fontWeight: '700' }}>{fmtKwd(c.kwd)}</Text>
+              <Text style={{ width: 90, textAlign: 'left', color: theme.colors.text0, fontFamily: theme.fonts.numeric, fontWeight: '700' }}>{fmtKwdAsIs(c.kwd)}</Text>
               <Chip label={fmtPct(c.pct, 0)} tone="teal" />
             </View>
-          ))}
-        </Card>
+          )) 
+        ) : (
+        <Text style={styles.emptyText}>No category data available</Text>
+      )}
+    </Card>
+  </>
+)}
+
+     {/* Top 10 Pharmacies */}
+{pharmacyId === 'all' && (
+  <>
+    <SectionTitle title="Top 10 Pharmacies" />
+    <Card>
+      {topPharm && topPharm.length > 0 ? (
+        topPharm.map((p, i) => (
+          <Row
+            key={p.id}
+            avatar={{
+              initials: String(i + 1).padStart(2, '0'),
+              color: rankColor(i + 1),
+            }}
+            title={p.name}
+            subtitle={`${fmtKwdAsIs(p.amtKwd)} · ${period} revenue`}
+            amount={fmtKwdAsIs(p.amtKwd)}
+            delta={{
+              label: '▲ ' + Math.round(8 + i * 0.5) + '%',
+              tone: 'green',
+            }}
+          />
+        ))
+      ) : (
+        <Text style={styles.emptyText}>No pharmacy data available</Text>
+      )}
+    </Card>
+  </>
+)}
+
+{/* Discount leaderboard */}
+{pharmacyId === 'all' && (
+  <>
+    <SectionTitle title="Highest Discount by Pharmacy" rightLabel="Top 10" />
+    <Card>
+      {discounts.length > 0 ? (
+        (() => {
+          const maxRate = Math.max(...discounts.map(d => d.ratePct), 1);
+          return discounts.map((d, index) => (
+            <View
+              key={d.id}
+              style={[
+                styles.discRow,
+                index === discounts.length - 1 && styles.discRowLast,
+              ]}
+            >
+              <View style={styles.discHeader}>
+                <Text style={styles.discName}>{d.name}</Text>
+                <Text style={styles.discValue}>
+                  -{fmtKwdAsIs(d.discountKwd)} <Text style={styles.discPct}>({fmtPct(d.ratePct)})</Text>
+                </Text>
+              </View>
+              <View style={styles.discBarBg}>
+                <View
+                  style={[
+                    styles.discBarFill,
+                    { width: `${Math.round((d.ratePct / maxRate) * 100)}%` },
+                  ]}
+                />
+              </View>
+            </View>
+          ));
+        })()
+      ) : (
+        <Text style={styles.emptyText}>No discount data available</Text>
+      )}
+    </Card>
+  </>
+)}
       </ScrollView>
 
       <AsOnDateModal
@@ -576,19 +783,19 @@ export function PharmaciesScreen(): React.JSX.Element {
       />
 
       <PickerModal
-        visible={pickerVisible}
-        onClose={() => setPickerVisible(false)}
-        title="Select Pharmacy"
-        subtitle="All KPIs and widgets recompute for the selected scope"
-        selectedKey={pharmacyId}
-        onSelect={key => { setPharmacyId(key); setPickerVisible(false); }}
-        options={pharmacies.map(p => ({
-          key: p.id,
-          title: p.name,
-          subtitle: p.id === 'all' ? '29 active branches · default scope' : `${fmtKwd(p.amtKwd)} · weekly revenue`,
-          tag: p.id === 'all' ? 'All' : p.id,
-        }))}
-      />
+  visible={pickerVisible}
+  onClose={() => setPickerVisible(false)}
+  title="Select Pharmacy"
+  subtitle="All KPIs and widgets recompute for the selected scope"
+  selectedKey={pharmacyId}
+  onSelect={key => { setPharmacyId(key); setPickerVisible(false); }}
+  options={pharmacies.map(p => ({
+    key: p.id,
+    title: p.name,
+    subtitle: p.id === 'all' ? `${summary?.storesActive ?? 0} active branches · default scope` : `${fmtKwd(p.amtKwd)} · ${period} revenue`,
+    tag: p.id === 'all' ? 'All' : p.id,
+  }))}
+/>
     </SafeAreaView>
   );
 }
@@ -620,6 +827,10 @@ const styles = StyleSheet.create({
     fontSize: 11, color: theme.colors.text2,
     textTransform: 'uppercase', letterSpacing: 0.6,
   },
+  discBarFill: {
+  height: '100%',
+  borderRadius: 999,
+},
   hero: {
     fontFamily: theme.fonts.numeric,
     fontSize: 26, fontWeight: '700', color: theme.colors.text0, marginTop: 4, letterSpacing: -0.5,
@@ -674,4 +885,14 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.amber,
     borderRadius: 999,
   },
+  emptyText: {
+  color: theme.colors.text2,
+  fontSize: theme.fontSize.sm,
+  textAlign: 'center',
+  paddingVertical: theme.spacing.lg,
+},
+  marginLegend: { flexDirection: 'row', justifyContent: 'center', gap: 16, marginTop: 10 },
+  legendItem: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  legendDot: { width: 10, height: 10, borderRadius: 2 },
+  legendText: { color: theme.colors.text2, fontSize: 11 },
 });

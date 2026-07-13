@@ -26,22 +26,52 @@ interface Props {
 /**
  * Bottom-sheet modal for filter pickers (pharmacy, F&B brand/outlet).
  */
-export function PickerModal({ visible, title, subtitle, tab = 'brands', onTabChange, options, selectedKey, onSelect, onClose }: Props): React.JSX.Element {
+export function PickerModal({
+  visible,
+  title,
+  subtitle,
+  tab = 'brands',
+  onTabChange,
+  options,
+  selectedKey,
+  onSelect,
+  onClose,
+}: Props): React.JSX.Element {
   return (
-    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
+    <Modal
+      visible={visible}
+      transparent
+      animationType="slide"
+      onRequestClose={onClose}
+    >
       <View style={styles.bg}>
-        <TouchableOpacity style={styles.backdrop} activeOpacity={1} onPress={onClose} />
+        <TouchableOpacity
+          style={styles.backdrop}
+          activeOpacity={1}
+          onPress={onClose}
+        />
+
         <View style={styles.sheet}>
           <View style={styles.handle} />
+
           <Text style={styles.title}>{title}</Text>
-          {subtitle && <Text style={styles.subtitle}>{subtitle}</Text>}
+
+          {subtitle && (
+            <Text style={styles.subtitle}>{subtitle}</Text>
+          )}
+
           {onTabChange && (
             <View style={styles.tabContainer}>
               <TouchableOpacity
                 style={[styles.tab, tab === 'brands' && styles.tabActive]}
                 onPress={() => onTabChange('brands')}
               >
-                <Text style={[styles.tabText, tab === 'brands' && styles.tabTextActive]}>
+                <Text
+                  style={[
+                    styles.tabText,
+                    tab === 'brands' && styles.tabTextActive,
+                  ]}
+                >
                   Brands
                 </Text>
               </TouchableOpacity>
@@ -50,50 +80,52 @@ export function PickerModal({ visible, title, subtitle, tab = 'brands', onTabCha
                 style={[styles.tab, tab === 'outlets' && styles.tabActive]}
                 onPress={() => onTabChange('outlets')}
               >
-                <Text style={[styles.tabText, tab === 'outlets' && styles.tabTextActive]}>
+                <Text
+                  style={[
+                    styles.tabText,
+                    tab === 'outlets' && styles.tabTextActive,
+                  ]}
+                >
                   Outlets
                 </Text>
               </TouchableOpacity>
             </View>
           )}
+
           <FlatList
             data={options}
-            keyExtractor={item => item.key}
+            keyExtractor={(item) => item.key}
             renderItem={({ item }) => {
               const active = item.key === selectedKey;
+
               return (
                 <TouchableOpacity
                   style={[styles.option, active && styles.optionActive]}
                   onPress={() => onSelect(item.key)}
                 >
-                  <View style={[styles.radio, active && styles.radioActive]}>
+                  <View
+                    style={[styles.radio, active && styles.radioActive]}
+                  >
                     {active && <View style={styles.radioDot} />}
                   </View>
+
                   <View style={{ flex: 1 }}>
-<View style={{ flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap' }}>
-  {item.tag === 'Outlet' ? (
-    <>
-      {/* ✅ Division/Outlet Code */}
-      <Text style={styles.code}>
-        {item.title.split(' ')[0]}
-      </Text>
+                    <Text style={styles.optTitle}>
+                      {item.title}
+                    </Text>
 
-      {/* ✅ Space */}
-      <Text> </Text>
-
-      {/* ✅ Name */}
-      <Text style={styles.optTitle}>
-        {item.title.split(' ').slice(1).join(' ')}
-      </Text>
-    </>
-  ) : (
-    <Text style={styles.optTitle}>{item.title}</Text>
-  )}
-</View>
-
-                    {item.subtitle && <Text style={styles.optSub}>{item.subtitle}</Text>}
+                    {item.subtitle && (
+                      <Text style={styles.optSub}>
+                        {item.subtitle}
+                      </Text>
+                    )}
                   </View>
-                  {item.tag && <Text style={styles.optTag}>{item.tag}</Text>}
+
+                  {item.tag && (
+                    <Text style={styles.optTag}>
+                      {item.tag}
+                    </Text>
+                  )}
                 </TouchableOpacity>
               );
             }}
@@ -103,7 +135,6 @@ export function PickerModal({ visible, title, subtitle, tab = 'brands', onTabCha
     </Modal>
   );
 }
-
 const styles = StyleSheet.create({
   bg:        { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.55)' },
   backdrop:  { flex: 1 },

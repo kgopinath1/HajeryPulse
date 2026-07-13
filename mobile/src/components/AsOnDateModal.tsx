@@ -13,12 +13,23 @@ interface Props {
 }
 
 export function AsOnDateModal({ visible, onClose, onSelect, currentDate }: Props) {
-  const [selectedDate, setSelectedDate] = useState(new Date(currentDate));
-  const [showPicker, setShowPicker] = useState(false);
-const [selectedPreset, setSelectedPreset] = useState<string | null>(null);
+  // ✅ Parses "YYYY-MM-DD" as LOCAL midnight (avoids UTC off-by-one on parse)
+  const parseLocalDate = (s: string) => {
+    const [y, m, d] = s.split('-').map(Number);
+    return new Date(y, m - 1, d);
+  };
 
-  // ✅ Helper
-  const toISO = (d: Date) => d.toISOString().split('T')[0];
+  const [selectedDate, setSelectedDate] = useState(parseLocalDate(currentDate));
+  const [showPicker, setShowPicker] = useState(false);
+  const [selectedPreset, setSelectedPreset] = useState<string | null>(null);
+
+  // ✅ Formats a Date back to "YYYY-MM-DD" using LOCAL components (no UTC conversion)
+  const toISO = (d: Date) => {
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
 
   const today = new Date();
 

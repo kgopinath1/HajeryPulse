@@ -30,6 +30,7 @@ export interface WTSummary {
   
   };
   spark: number[];
+  sparkLY: number[];
 }
 
 export interface MarginAnalysis {
@@ -127,16 +128,27 @@ export interface PharmaMargin {
   netSalesKwd: number;
   marginPct: number;
   marginPctLY: number;
+  marginDeviationPp: number;   
   lyGrossKwd: number;
   lyNetSalesKwd: number;
   lyCogsKwd: number;
+  grossYoyPct: number;         
+  cogsYoyPct: number;          
+  grossMarginYoyPct: number;   
+  discountPct: number;        
+  growthType: string;
+  trend?: number[];            
+  trendLY?: number[];          
 }
 
 export interface PharmaChannel {
-  instoreKwd: number;
-  callcenterKwd: number;
-  aggregatorKwd: number;
+  channelCode: string;
+  channelName: string;
+  kwd: number;
+  pct: number;
 }
+
+
 
 export interface PharmaPaymentRow { key: string; label: string; kwd: number; pct: number; color: string; }
 export interface PharmaCategoryRow { key: string; label: string; kwd: number; pct: number; }
@@ -153,6 +165,10 @@ export interface PharmaRxOtcMix {
 }
 
 export interface PharmaTrendPoint { slot: number; value: number; }
+export interface PharmaTrend {
+  current: number[];
+  previous: number[];
+}
 
 // F&B
 export interface FBBrand {
@@ -189,14 +205,16 @@ export interface FBSummary {
 
 export interface FBAggregatorRow { key: string; label: string; kwd: number; pct: number; color: string; }
 export interface FBChannelMix {
-  dineInKwd: number;
-  deliveryKwd: number;
-  takeawayKwd: number;
-  dineInPct: number;
-  deliveryPct: number;
-  takeawayPct: number;
+  channelCode: string;
+  channelName: string;
+  kwd: number;
+  pct: number;
 }
 export interface FBPaymentRow { key: string; label: string; kwd: number; pct: number; color: string; }
+export interface FBTrend {
+  current: number[];
+  previous: number[];
+}
 export interface FBTrendPoint {slot: number; value: number;}
 
 

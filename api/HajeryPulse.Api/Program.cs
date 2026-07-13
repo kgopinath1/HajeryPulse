@@ -74,15 +74,18 @@ builder.Services.AddScoped<ISalesRepository,   SalesRepository>();
 builder.Services.AddScoped<IPharmaRepository,  PharmaRepository>();
 builder.Services.AddScoped<IFBRepository,      FBRepository>();
 builder.Services.AddScoped<IFinanceRepository, FinanceRepository>();
-builder.Services.AddScoped<IInboxRepository,   InboxRepository>();
-
+builder.Services.AddHttpClient<IInboxRepository, InboxRepository>(client =>
+{
+    client.BaseAddress = new Uri("http://192.168.10.147:8086/");
+});
 // ---------- Services ----------
 //builder.Services.AddScoped<ICacheService,   RedisCacheService>();
 builder.Services.AddScoped<ISalesService,   SalesService>();
 builder.Services.AddScoped<IPharmaService,  PharmaService>();
 builder.Services.AddScoped<IFBService,      FBService>();
 builder.Services.AddScoped<IFinanceService, FinanceService>();
-builder.Services.AddScoped<IInboxService,   InboxService>();
+builder.Services.AddScoped<IInboxService, InboxService>();
+
 
 // ---------- API + Swagger ----------
 builder.Services.AddControllers();

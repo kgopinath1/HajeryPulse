@@ -23,8 +23,10 @@ import { AsOnDateBar } from '@components/AsOnDateBar';
 import { Row } from '@components/Row';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import LinearGradient from 'react-native-linear-gradient';
+import { NoDataCard } from '@components/NoDataCard';
 import { salesApi } from '@api/sales';
 import { defaultAsOfDate } from '@utils/date';
+import { getTrendLabels, getPeriodLabel, btLabel } from '@utils/labels';
 import { MultiSparkline } from '@components/MultiSparkline';
 import { fmtKwd, fmtPct, fmtInt, fmtYoy, fmtYoyPp, initials, fmtKwdAsIs } from '@utils/format';
 import {
@@ -53,11 +55,11 @@ export function WholesaleTenderScreen(): React.JSX.Element {
       const parent = orgPath[orgPath.length - 1] ?? 'root';
       const [s, m, q, o, b, c] = await Promise.all([
         salesApi.summary(asOfDate, bt, period),
-        salesApi.margin(asOfDate, bt),
+        salesApi.margin(asOfDate, bt,period),
         salesApi.quality(asOfDate, bt, period),
         salesApi.org(asOfDate, bt, parent,period),
-        salesApi.topBrands(asOfDate, bt, period),
-        salesApi.topCustomers(asOfDate, bt, period),
+        salesApi.topBrands(asOfDate, bt, period,10,parent),
+        salesApi.topCustomers(asOfDate, bt, period,10,parent),
       ]);
       setSummary(s); setMargin(m); setQuality(q);
       setOrg(o); setBrands(b); setCustomers(c);
@@ -72,14 +74,27 @@ export function WholesaleTenderScreen(): React.JSX.Element {
   useEffect(() => { load(); }, [load]);
 
   const onRefresh = () => { setRefreshing(true); load(); };
-  const periodLabel = {
-    day: 'DoD',
-    week: 'WoW',
-    month: 'MoM',
-    ytd: 'YoY'
-  }[period] || 'Δ';
+  const periodLabel = getPeriodLabel(period);
   const onDrill = (key: string) => setOrgPath(prev => [...prev, key]);
   const onUpToBreadcrumb = (i: number) => setOrgPath(prev => prev.slice(0, i + 1));
+
+
+  const hasData =
+  (summary?.revenue?.kwd ?? 0) > 0 ||
+  (summary?.kpis?.newOrders ?? 0) > 0 ||
+
+  (margin && (margin.netSalesKwd ?? 0) > 0) ||
+
+  (quality && (quality.grossKwd ?? 0) > 0) ||
+
+  (org && org.children?.some(c => (c.total ?? 0) > 0)) ||
+
+  brands.some(b => (b.amountKwd ?? 0) > 0) ||
+
+  customers.some(c => (c.amountKwd ?? 0) > 0);
+
+const showNoData = !loading && !hasData;
+
 
   if (loading && !summary) {
     return (
@@ -162,412 +177,340 @@ export function WholesaleTenderScreen(): React.JSX.Element {
           ]}
         />
 
-        {/* Revenue card */}
-        {summary
+{showNoData ? (
+  <NoDataCard />
+) : (
+  <>
+       {/* Revenue card */}
+<SectionTitle title="Revenue" />
+{summary ? (
+  <Card>
+    <Text style={styles.eyebrow}>REVENUE · {period.toUpperCase()}  TO DATE</Text>
+    <Text style={styles.heroValue}>{fmtKwd(summary.revenue.kwd)}</Text>
+    <View style={{ marginTop: 4, flexDirection: 'row' }}>
+      <Chip label={fmtYoy(summary.revenue.wow, summary.revenue.growthType)} tone={summary.revenue.wow >= 0 ? 'green' : 'red'} />
+    </View>
 
-          && (
-
-            <Card>
-              <Text style={styles.eyebrow}>REVENUE · {period.toUpperCase()}  TO DATE</Text>
-              <Text style={styles.heroValue}>{fmtKwd(summary.revenue.kwd)}</Text>
-              <View style={{ marginTop: 4, flexDirection: 'row' }}>
-                <Chip label={fmtYoy(summary.revenue.wow, summary.revenue.growthType)} tone={summary.revenue.wow >= 0 ? 'green' : 'red'} />
-                {/* <Chip label={fmtYoy(summary.revenue.wow) + ' WoW'} tone={summary.revenue.wow >= 0 ? 'green' : 'red'} /> */}
-              </View>
-              <View style={{ marginTop: 12 }}>
-                <Sparkline values={summary.spark} color={theme.colors.gold} height={120} />
-                <Text style={{ color: theme.colors.text2 }}>
-                  {period === 'week' && 'Last 7 days'}
-                  {period === 'month' && 'Weekly trend'}
-                  {period === 'ytd' && 'Monthly trend'}
-                </Text>
-                {/* <Sparkline values={summary.spark} height={120} color={theme.colors.gold} /> */}
-              </View>
-            </Card>
-          )}
+    {period !== 'day' && (
+      <View style={{ marginTop: 12 }}>
+        <MultiSparkline
+          primary={summary.spark ?? []}
+          secondary={summary.sparkLY ?? []}
+          primaryColor={theme.colors.goldSoft}
+          secondaryColor={theme.colors.blue}
+          labels={getTrendLabels(period, summary.spark?.length ?? 0)}
+          height={120}
+        />
+        <View style={styles.marginLegend}>
+          <View style={styles.legendItem}>
+            <View style={[styles.legendDot, { backgroundColor: theme.colors.goldSoft }]} />
+            <Text style={styles.legendText}>Current Period</Text>
+          </View>
+          <View style={styles.legendItem}>
+            <View style={[styles.legendDot, { backgroundColor: theme.colors.blue }]} />
+            <Text style={styles.legendText}>Last Period</Text>
+          </View>
+        </View>
+        <Text style={{ color: theme.colors.text2 }}>
+          {period === 'week' && 'Last 7 days'}
+          {period === 'month' && 'Weekly trend'}
+          {period === 'ytd' && 'Monthly trend'}
+        </Text>
+      </View>
+    )}
+  </Card>
+) : (
+  <Card>
+    <Text style={styles.emptyText}>No revenue data available</Text>
+  </Card>
+)}
 
         {/* KPI grid */}
-        {summary && (
-          <View style={styles.kpiGrid}>
+{summary ? (
+  <View style={styles.kpiGrid}>
+    <KpiTile
+      label="Total Orders"
+      value={fmtInt(summary.kpis.newOrders)}
+      delta={{ value: `${summary.revenue.wow?.toFixed(1) || 0}%`, positive: summary.revenue.wow >= 0 }} />
+    <KpiTile label="Avg. order value" value={fmtKwdAsIs(summary.kpis.avgOrderValueKwd)} delta={{
+      value: `${summary.kpis.avgOrderValuePct?.toFixed(1)}%`,
+      positive: summary.kpis.avgOrderValuePct >= 0
+    }} />
+    <KpiTile label="Active tenders" value={String(summary.kpis.activeTenders)} chip={{
+      label: `${fmtKwd(summary.kpis.pipelineAmount)} pipeline`,
+      tone: 'blue'
+    }} />
+    <KpiTile label="Avg. tender value" value={fmtKwd(summary.kpis.avgTenderValueKwd)}
+      delta={{ value: `${summary.kpis.avgTenderValuePct?.toFixed(1) || 0}%`, positive: summary.kpis.avgTenderValuePct >= 0 }} />
+  </View>
+) : (
+  <Card>
+    <Text style={styles.emptyText}>No KPI data available</Text>
+  </Card>
+)}
 
-            <KpiTile
-              label="Wholesale Orders"
-              value={fmtInt(summary.kpis.newOrders)}
-              delta={{ value: `${summary.revenue.wow?.toFixed(1) || 0}%`, positive: summary.revenue.wow >= 0 }} />
-            <KpiTile label="Avg. order value" value={fmtKwdAsIs(summary.kpis.avgOrderValueKwd)} delta={{
-              value: `${summary.kpis.avgOrderValuePct?.toFixed(1)}%`,
-              positive: summary.kpis.avgOrderValuePct >= 0
-            }} />
-            <KpiTile label="Active tenders" value={String(summary.kpis.activeTenders)} chip={{
-              label: `${fmtKwd(summary.kpis.pipelineAmount)} pipeline`,
-              tone: 'blue'
-            }} />
-            <KpiTile label="Avg. tender value" value={fmtKwd(summary.kpis.avgTenderValueKwd)}
-              delta={{ value: `${summary.kpis.avgTenderValuePct?.toFixed(1) || 0}%`, positive: summary.kpis.avgTenderValuePct >= 0 }} />
+      {/* Margin Analysis */}
+<SectionTitle title="Margin Analysis" rightLabel={btLabel(bt)} />
+{margin ? (
+  <Card>
+    <Text style={styles.eyebrow}>GROSS MARGIN % - {period} DATA</Text>
+    <Text style={[styles.heroValue, { color: theme.colors.goldSoft }]}>{fmtPct(margin.marginPct)}</Text>
+    <View style={styles.marginHeaderRow}>
+      <Text style={styles.subtle}>vs {fmtPct(margin.marginPctLY)} last period selected</Text>
+      <Chip label={`${fmtYoyPp(margin.marginYoyPp)} ${periodLabel}`} tone={margin.marginYoyPp >= 0 ? 'green' : 'red'} />
+    </View>
+
+    {period !== 'day' && (
+      <View style={styles.marginTrend}>
+        <MultiSparkline
+          primary={margin.trend12mo ?? []}
+          secondary={margin.trend12moLY ?? []}
+          primaryColor={theme.colors.goldSoft}
+          secondaryColor={theme.colors.blue}
+          labels={getTrendLabels(period, margin.trend12mo?.length ?? 0)}
+          height={90}
+        />
+        <View style={styles.marginLegend}>
+          <View style={styles.legendItem}>
+            <View style={[styles.legendDot, { backgroundColor: theme.colors.goldSoft }]} />
+            <Text style={styles.legendText}>Margin % this period</Text>
           </View>
-        )}
+          <View style={styles.legendItem}>
+            <View style={[styles.legendDot, { backgroundColor: theme.colors.blue }]} />
+            <Text style={styles.legendText}>Last period</Text>
+          </View>
+        </View>
+      </View>
+    )}
 
-        {/* Margin Analysis */}
-        {margin && (
+    <View style={styles.kpiGridInner}>
+      <KpiTile label="Net sales" value={fmtKwd(margin.netSalesKwd)} delta={{
+        value: (
           <>
-            <SectionTitle title="Margin Analysis" rightLabel={btLabel(bt)} />
-            <Card>
-              <Text style={styles.eyebrow}>GROSS MARGIN % - YTD DATA</Text>
-              <Text style={[styles.heroValue, { color: theme.colors.goldSoft }]}>{fmtPct(margin.marginPct)}</Text>
-              <View style={styles.marginHeaderRow}>
-                <Text style={styles.subtle}>vs {fmtPct(margin.marginPctLY)} last year</Text>
-                <Chip label={`${fmtYoyPp(margin.marginYoyPp)} YoY`} tone={margin.marginYoyPp >= 0 ? 'green' : 'red'} />
-              </View>
-              {/* Margin trend */}
-              
-              <View style={styles.marginTrend}>
-                <MultiSparkline
-                  primary={margin.trend12mo ?? []}
-                  secondary={margin.trend12moLY ?? []}
-                  labels={[
-                    'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-                    'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
-                  ]}
-                  height={90}
-                />
-
-                <View style={styles.marginLegend}>
-                  <View style={styles.legendItem}>
-                    <View style={[styles.legendDot, { backgroundColor: theme.colors.goldSoft }]} />
-                    <Text style={styles.legendText}>Margin % this year</Text>
-                  </View>
-
-                  <View style={styles.legendItem}>
-                    <View style={[styles.legendDot, { backgroundColor: theme.colors.blue }]} />
-                    <Text style={styles.legendText}>Last year</Text>
-                  </View>
-                </View>
-              </View>
-
-              <View style={styles.kpiGridInner}>
-
-
-                <KpiTile label="Net sales" value={fmtKwd(margin.netSalesKwd)} delta={{
-                  value: (
-                    <>
-                      <Text style={{ color: margin.salesYoyPct >= 0 ? theme.colors.green : theme.colors.red }}>{fmtPct(margin.salesYoyPct)}</Text>
-                      <Text style={{ color: theme.colors.text2 }}> vs LY</Text>
-                    </>
-                  ),
-                  positive: margin.salesYoyPct >= 0,
-
-                }} />
-
-                <KpiTile label="Cost of sales" value={fmtKwd(margin.cogsKwd)} delta={{
-                  value: (
-                    <>
-                      <Text style={{ color: margin.cogsYoyPct >= 0 ? theme.colors.green : theme.colors.red }}>{fmtPct(margin.cogsYoyPct)}</Text>
-                      <Text style={{ color: theme.colors.text2 }}> vs LY</Text>
-                    </>
-                  ),
-                  positive: margin.cogsYoyPct >= 0,
-
-                }} />
-
-
-                <KpiTile label="Gross margin" value={fmtKwd(margin.grossMarginKwd)} delta={{
-                  value: (
-                    <>
-                      <Text style={{ color: margin.grossMarginYoyPct >= 0 ? theme.colors.green : theme.colors.red }}>{fmtPct(margin.grossMarginYoyPct)}</Text>
-                      <Text style={{ color: theme.colors.text2 }}> vs LY</Text>
-                    </>
-                  ),
-                  positive: margin.grossMarginYoyPct >= 0,
-
-                }} />
-
-                <KpiTile label="YoY deviation" value={fmtYoyPp(margin.marginYoyPp)} valueColor={theme.colors.green} subtitle="Margin expansion" />
-
-
-
-              </View>
-            </Card>
+            <Text style={{ color: margin.salesYoyPct >= 0 ? theme.colors.green : theme.colors.red }}>{fmtPct(margin.salesYoyPct)}</Text>
+            <Text style={{ color: theme.colors.text2 }}> {periodLabel}</Text>
           </>
-        )}
+        ),
+        positive: margin.salesYoyPct >= 0,
+      }} />
+
+      <KpiTile label="Cost of sales" value={fmtKwd(margin.cogsKwd)} delta={{
+        value: (
+          <>
+            <Text style={{ color: margin.cogsYoyPct >= 0 ? theme.colors.green : theme.colors.red }}>{fmtPct(margin.cogsYoyPct)}</Text>
+            <Text style={{ color: theme.colors.text2 }}> {periodLabel}</Text>
+          </>
+        ),
+        positive: margin.cogsYoyPct >= 0,
+      }} />
+
+      <KpiTile label="Gross margin" value={fmtKwd(margin.grossMarginKwd)} delta={{
+        value: (
+          <>
+            <Text style={{ color: margin.grossMarginYoyPct >= 0 ? theme.colors.green : theme.colors.red }}>{fmtPct(margin.grossMarginYoyPct)}</Text>
+            <Text style={{ color: theme.colors.text2 }}> {periodLabel}</Text>
+          </>
+        ),
+        positive: margin.grossMarginYoyPct >= 0,
+      }} />
+
+      <KpiTile
+        label={`${periodLabel} deviation`}
+        value={fmtYoyPp(margin.marginYoyPp)}
+        valueColor={
+          margin.marginYoyPp > 0
+            ? theme.colors.green
+            : margin.marginYoyPp < 0
+              ? theme.colors.red
+              : theme.colors.text2
+        }
+        subtitle={
+          margin.marginYoyPp > 0
+            ? 'Margin expansion'
+            : margin.marginYoyPp < 0
+              ? 'Margin contraction'
+              : 'No change'
+        }
+      />
+    </View>
+  </Card>
+) : (
+  <Card>
+    <Text style={styles.emptyText}>No margin data available</Text>
+  </Card>
+)}
 
         {/* Sales Quality */}
-        {quality && (
-          <>
-            <SectionTitle title="Sales Quality" rightLabel={btLabel(bt)} />
+       <SectionTitle title="Sales Quality" rightLabel={btLabel(bt)} />
+{quality ? (
+  <Card>
+    <Text style={styles.eyebrow}>GROSS → NET</Text>
+    <View style={styles.marginHeaderRow}>
+      <View>
+        <Text style={styles.heroValue}>{fmtKwd(quality.netKwd)}</Text>
+        <Text style={styles.subtle}>
+          {fmtPct(quality.netPct)} of gross retained
+        </Text>
+      </View>
+      <Chip
+        label={`${fmtYoyPp(quality.netPctDelta)} ${periodLabel}`}
+        tone={quality.netPctDelta >= 0 ? 'green' : 'red'}
+      />
+    </View>
 
-            <Card>
-              <Text style={styles.eyebrow}>GROSS → NET</Text>
+    <View style={{ marginTop: 16, gap: 12 }}>
+      <View style={styles.qualityRow}>
+        <Text style={styles.qualityLabel}>Gross sales</Text>
+        <View style={styles.qualityBar}>
+          <View style={[styles.qualityFill, { width: '100%', backgroundColor: theme.colors.goldSoft }]} />
+        </View>
+        <Text style={styles.qualityValue}>{fmtKwd(quality.grossKwd)}</Text>
+      </View>
 
-              <View style={styles.marginHeaderRow}>
-                <View>
-                  <Text style={styles.heroValue}>{fmtKwd(quality.netKwd)}</Text>
-                  <Text style={styles.subtle}>
-                    {fmtPct(quality.netPct)} of gross retained
-                  </Text>
-                </View>
+      <View style={styles.qualityRow}>
+        <Text style={[styles.qualityLabel, { color: theme.colors.red }]}>Sales returns</Text>
+        <View style={styles.qualityBar}>
+          <View style={[styles.qualityFill, { width: `${quality.returnsPct}%`, backgroundColor: theme.colors.red }]} />
+        </View>
+        <Text style={[styles.qualityValue, { color: theme.colors.red }]}>{fmtKwd(quality.returnsKwd)}</Text>
+      </View>
 
-                <Chip
-                  label={`${fmtYoyPp(quality.netPctDelta)} ${periodLabel}`}
-                  tone={quality.netPctDelta >= 0 ? 'green' : 'red'}
-                />
-              </View>
+      <View style={styles.qualityRow}>
+        <Text style={[styles.qualityLabel, { color: theme.colors.teal }]}>Net sales</Text>
+        <View style={styles.qualityBar}>
+          <View style={[styles.qualityFill, { width: `${quality.netPct}%`, backgroundColor: theme.colors.teal }]} />
+        </View>
+        <Text style={[styles.qualityValue, { color: theme.colors.teal }]}>{fmtKwd(quality.netKwd)}</Text>
+      </View>
+    </View>
 
-              <View style={{ marginTop: 16, gap: 12 }}>
-                {/* Gross */}
-                <View style={styles.qualityRow}>
-                  <Text style={styles.qualityLabel}>Gross sales</Text>
-
-                  <View style={styles.qualityBar}>
-                    <View
-                      style={[
-                        styles.qualityFill,
-                        {
-                          width: '100%',
-                          backgroundColor: theme.colors.goldSoft,
-                        },
-                      ]}
-                    />
-                  </View>
-
-                  <Text style={styles.qualityValue}>
-                    {fmtKwd(quality.grossKwd)}
-                  </Text>
-                </View>
-
-                {/* Returns */}
-                <View style={styles.qualityRow}>
-                  <Text style={[styles.qualityLabel, { color: theme.colors.red }]}>
-                    Sales returns
-                  </Text>
-
-                  <View style={styles.qualityBar}>
-                    <View
-                      style={[
-                        styles.qualityFill,
-                        {
-                          width: `${quality.returnsPct}%`,
-                          backgroundColor: theme.colors.red,
-                        },
-                      ]}
-                    />
-                  </View>
-
-                  <Text style={[styles.qualityValue, { color: theme.colors.red }]}>
-                    {fmtKwd(quality.returnsKwd)}
-                  </Text>
-                </View>
-
-                {/* Cancellations */}
-                {/* <View style={styles.qualityRow}>
-              <Text style={[styles.qualityLabel, { color: theme.colors.amber }]}>
-                Invoice cancellations
-              </Text>
-
-              <View style={styles.qualityBar}>
-                <View
-                  style={[
-                    styles.qualityFill,
-                    {
-                      width: `${quality.cancellationsPct}%`,
-                      backgroundColor: theme.colors.amber,
-                    },
-                  ]}
-                />
-              </View>
-
-              <Text style={[styles.qualityValue, { color: theme.colors.amber }]}>
-                -{fmtKwd(quality.cancellationsKwd)}
-              </Text>
-            </View> */}
-
-                {/* Net */}
-                <View style={styles.qualityRow}>
-                  <Text style={[styles.qualityLabel, { color: theme.colors.teal }]}>
-                    Net sales
-                  </Text>
-
-                  <View style={styles.qualityBar}>
-                    <View
-                      style={[
-                        styles.qualityFill,
-                        {
-                          width: `${quality.netPct}%`,
-                          backgroundColor: theme.colors.teal,
-                        },
-                      ]}
-                    />
-                  </View>
-
-                  <Text style={[styles.qualityValue, { color: theme.colors.teal }]}>
-                    {fmtKwd(quality.netKwd)}
-                  </Text>
-                </View>
-              </View>
-
-              <View style={{ marginTop: 14, flexDirection: 'row', gap: 8 }}>
-                <Chip
-                  label={`Returns ${fmtPct(quality.returnsPct)} of gross`}
-                  tone={quality.returnsPct > 0 ? 'red' : 'green'}
-                />
-
-                <Chip
-                  label={`${fmtYoyPp(quality.returnsPctDelta)} returns vs LY`}
-                  tone={quality.returnsPctDelta <= 0 ? 'green' : 'red'}
-                />
-
-
-                {/*   <Chip
-              label={`Cancellations ${fmtPct(quality.cancellationsPct)}`}
-              tone="amber"
-            /> */}
-              </View>
-            </Card>
-          </>
-        )}
+    <View style={{ marginTop: 14, flexDirection: 'row', gap: 8 }}>
+      <Chip
+        label={`Returns ${fmtPct(quality.returnsPct)} of gross`}
+        tone={quality.returnsPct > 0 ? 'red' : 'green'}
+      />
+      <Chip
+        label={`${fmtYoyPp(quality.returnsPctDelta)} returns ${periodLabel}`}
+        tone={quality.returnsPctDelta <= 0 ? 'green' : 'red'}
+      />
+    </View>
+  </Card>
+) : (
+  <Card>
+    <Text style={styles.emptyText}>No sales quality data available</Text>
+  </Card>
+)}
         {/* Org structure drill-down */}
 
+<SectionTitle title="By Org Structure" rightLabel={btLabel(bt)} />
+{org ? (
+  <Card>
+    <Text style={styles.eyebrow}>{org.level?.toUpperCase()}</Text>
 
-        {org && (
-          <>
-            <SectionTitle
-              title="By Org Structure"
-              rightLabel={btLabel(bt)}
-            />
+    <View style={styles.breadcrumbWrap}>
+      {orgPath.map((k, i) => (
+        <Text
+          key={k}
+          onPress={() => onUpToBreadcrumb(i)}
+          style={[styles.crumb, i === orgPath.length - 1 && styles.crumbCurrent]}
+        >
+          {k === 'root' ? 'Group' : k}
+          {i < orgPath.length - 1 ? ' › ' : ''}
+        </Text>
+      ))}
+    </View>
 
-            <Card>
-              {/* LEVEL */}
-              <Text style={styles.eyebrow}>
-                {org.level?.toUpperCase()}
-              </Text>
+    {org.children && org.children.length > 0 ? (
+      org.children.map((child) => {
+        const total = child.total;
+        const share = child.sharePct;
 
-              {/* BREADCRUMB */}
-              <View style={styles.breadcrumbWrap}>
-                {orgPath.map((k, i) => (
-                  <Text
-                    key={k}
-                    onPress={() => onUpToBreadcrumb(i)}
-                    style={[
-                      styles.crumb,
-                      i === orgPath.length - 1 &&
-                      styles.crumbCurrent
-                    ]}
-                  >
-                    {k === 'root' ? 'Group' : k}
-                    {i < orgPath.length - 1 ? ' › ' : ''}
-                  </Text>
-                ))}
+        return (
+          <TouchableOpacity
+            key={child.key}
+            activeOpacity={child.hasChildren ? 0.7 : 1}
+            onPress={() => child.hasChildren && onDrill(child.key)}
+            style={styles.rowCard}
+          >
+            <View style={styles.rowTop}>
+              <View style={styles.rowLeft}>
+                <View style={styles.codeBadge}>
+                  <Text style={styles.codeText}>{child.key}</Text>
+                </View>
+                <Text style={styles.title}>{child.name}</Text>
+                {child.hasChildren && <Text style={styles.chevron}>›</Text>}
               </View>
+              <Text style={styles.amount}>{fmtKwdAsIs(total)}</Text>
+            </View>
 
-              {/* SAFE TOTAL */}
-              {(() => {
-                return org.children?.map((child) => {
-                  const total = child.total
-                  const share = child.sharePct
+            <View style={styles.progressTrack}>
+              <LinearGradient
+                colors={['#34D399', '#22D3EE']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+                style={[styles.progressFill, { width: `${Math.min(Math.max(share, 0), 100)}%` }]}
+              />
+            </View>
 
-                  return (
-                    <TouchableOpacity
-                      key={child.key}
-                      activeOpacity={
-                        child.hasChildren ? 0.7 : 1
-                      }
-                      onPress={() =>
-                        child.hasChildren &&
-                        onDrill(child.key)
-                      }
-                      style={styles.rowCard}
-                    >
-                      {/* TOP */}
-                      <View style={styles.rowTop}>
-                        <View style={styles.rowLeft}>
-                          <View style={styles.codeBadge}>
-                            <Text style={styles.codeText}>
-                              {child.key}
-                            </Text>
-                          </View>
-
-                          <Text style={styles.title}>
-                            {child.name}
-                          </Text>
-
-                          {child.hasChildren && (
-                            <Text style={styles.chevron}>
-                              ›
-                            </Text>
-                          )}
-                        </View>
-
-                        <Text style={styles.amount}>
-                          {fmtKwd(total)}
-                        </Text>
-                      </View>
-
-                      {/* PROGRESS */}
-                      <View style={styles.progressTrack}>
-                        <LinearGradient
-                          colors={['#34D399', '#22D3EE']}
-                          start={{ x: 0, y: 0 }}
-                          end={{ x: 1, y: 0 }}
-                          style={[
-                            styles.progressFill,
-                            { width: `${Math.min(Math.max(share, 0), 100)}%` }
-                          ]}
-                        />
-                      </View>
-
-                      {/* BOTTOM */}
-                      <View style={styles.rowBottom}>
-                        <Text style={styles.shareText}>
-                          {share.toFixed(1)}% share
-                        </Text>
-
-                        <Text
-                          style={[
-                            styles.yoy,
-                            {
-                              color:
-                                child.yoyPct >= 0
-                                  ? theme.colors.green
-                                  : theme.colors.red
-                            }
-                          ]}
-                        >
-                          {fmtYoy(child.yoyPct)} {child.growthType}
-                        </Text>
-                      </View>
-                    </TouchableOpacity>
-                  )
-                })
-              })()}
-            </Card>
-          </>
-        )}
+            <View style={styles.rowBottom}>
+              <Text style={styles.shareText}>{share.toFixed(1)}% share</Text>
+              <Text style={[styles.yoy, { color: child.yoyPct >= 0 ? theme.colors.green : theme.colors.red }]}>
+                {fmtYoy(child.yoyPct)} {child.growthType}
+              </Text>
+            </View>
+          </TouchableOpacity>
+        );
+      })
+    ) : (
+      <Text style={styles.emptyText}>No org breakdown available for this level</Text>
+    )}
+  </Card>
+) : (
+  <Card>
+    <Text style={styles.emptyText}>No org structure data available</Text>
+  </Card>
+)}
 
 
-        {/* Top 10 Brands */}
-        <SectionTitle title="Top 10 Brands" />
-        {brands.map(b => (
-          <Row
-            key={b.brandCode}
-            avatar={{ initials: String(b.rank).padStart(2, '0'), color: rankColor(b.rank) }}
-            title={b.brand}
-            subtitle={b.segment}
-            amount={fmtKwd(b.amountKwd)}
-            delta={{ label: fmtYoy(b.yoyPct), tone: b.yoyPct >= 0 ? 'green' : 'red' }}
-          />
-        ))}
+       {/* Top 10 Brands */}
+<SectionTitle title="Top 10 Brands" />
+<Card>
+  {brands.length > 0 ? (
+    brands.map(b => (
+      <Row
+        key={b.brandCode}
+        avatar={{ initials: String(b.rank).padStart(2, '0'), color: rankColor(b.rank) }}
+        title={b.brand}
+        subtitle={b.segment}
+        amount={fmtKwdAsIs(b.amountKwd)}
+        delta={{ label: fmtYoy(b.yoyPct), tone: b.yoyPct >= 0 ? 'green' : 'red' }}
+      />
+    ))
+  ) : (
+    <Text style={styles.emptyText}>No brand data available</Text>
+  )}
+</Card>
 
-        {/* Top 10 Customers */}
-        <SectionTitle title="Top 10 Customers" />
-        {customers.map(c => (
-          <Row
-            key={c.customer}
-            avatar={{ initials: initials(c.customer), color: rankColor(c.rank) }}
-            title={c.customer}
-            subtitle={`${c.type} · ${c.ordersThisPeriod} orders`}
-            amount={fmtKwd(c.amountKwd)}
-            delta={{ label: fmtYoy(c.yoyPct), tone: c.yoyPct >= 0 ? 'green' : 'red' }}
-          />
-        ))}
+       {/* Top 10 Customers */}
+<SectionTitle title="Top 10 Customers" />
+<Card>
+  {customers.length > 0 ? (
+    customers.map(c => (
+      <Row
+        key={c.customer}
+        avatar={{ initials: String(c.rank).padStart(2, '0'), color: rankColor(c.rank) }}
+        title={c.customer}
+        subtitle={`${c.type} · ${c.ordersThisPeriod} orders`}
+        amount={fmtKwdAsIs(c.amountKwd)}
+        delta={{ label: fmtYoy(c.yoyPct), tone: c.yoyPct >= 0 ? 'green' : 'red' }}
+      />
+    ))
+  ) : (
+    <Text style={styles.emptyText}>No customer data available</Text>
+  )}
+</Card>
+        </>
+)}
       </ScrollView>
 
       <AsOnDateModal
@@ -581,9 +524,7 @@ export function WholesaleTenderScreen(): React.JSX.Element {
   );
 }
 
-function btLabel(bt: BTFilter): string {
-  return bt === 'both' ? 'All channels' : bt === 'wholesale' ? 'Wholesale only' : 'Tender only';
-}
+
 
 const RANK_PALETTE = [
   theme.colors.gold, theme.colors.teal, theme.colors.blue, theme.colors.purple,
@@ -618,7 +559,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
   },
-
+emptyText: {
+  color: theme.colors.text2,
+  fontSize: theme.fontSize.sm,
+  textAlign: 'center',
+  paddingVertical: theme.spacing.lg,
+},
   qualityLabel: {
     width: 95,
     fontSize: 12,

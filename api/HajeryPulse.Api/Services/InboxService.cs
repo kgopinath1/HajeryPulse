@@ -6,11 +6,12 @@ namespace HajeryPulse.Api.Services;
 
 public interface IInboxService
 {
-    Task<InboxListResponse>      ListInbox(ClaimsPrincipal user, string status, int limit);
-    Task<ApprovalDetailDto>      GetDetail(ClaimsPrincipal user, string id);
+    Task<List<UserDto>> GetUsers();
+/* 
+    Task<ApprovalDetailDto>      ListRequests();
     Task<ApprovalActionResponse> Approve(ClaimsPrincipal user, string id, string comment);
     Task<ApprovalActionResponse> Reject (ClaimsPrincipal user, string id, string comment);
-    Task<ApprovalActionResponse> Clarify(ClaimsPrincipal user, string id, string question);
+    Task<ApprovalActionResponse> Clarify(ClaimsPrincipal user, string id, string question);  */
 }
 
 public sealed class InboxService : IInboxService
@@ -32,13 +33,20 @@ public sealed class InboxService : IInboxService
         _logger = logger;
     }
 
-    public async Task<InboxListResponse> ListInbox(ClaimsPrincipal user, string status, int limit)
-    {
-        var userId = UserId(user);
-        var items = await _repo.ListInbox(userId, status, limit);
-        return new InboxListResponse(items.ToList());
-    }
+ public async Task<List<UserDto>> GetUsers()
+{
+    var users = await _repo.GetUsers();
+    return users.ToList();
+}
 
+
+/*     public async Task<InboxListResponse> ListRequests()
+{
+    var items = await _repo.ListRequests();
+
+    return new InboxListResponse(items.ToList());
+} */
+/*
     public Task<ApprovalDetailDto> GetDetail(ClaimsPrincipal user, string id)
         => _repo.GetDetail(UserId(user), id);
 
@@ -71,5 +79,5 @@ public sealed class InboxService : IInboxService
 
     private static string UserId(ClaimsPrincipal user)
         => user.FindFirstValue(ClaimTypes.NameIdentifier)
-        ?? throw new UnauthorizedAccessException("Missing user id");
+        ?? throw new UnauthorizedAccessException("Missing user id"); */
 }

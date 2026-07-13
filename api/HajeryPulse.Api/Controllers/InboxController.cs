@@ -1,3 +1,4 @@
+using System.Xml;
 using HajeryPulse.Api.Models.Dto;
 using HajeryPulse.Api.Services;
 using Microsoft.AspNetCore.Authorization;
@@ -14,15 +15,21 @@ public sealed class InboxController : ControllerBase
 
     public InboxController(IInboxService service) => _service = service;
 
-    [HttpGet]
-    public async Task<ActionResult<InboxListResponse>> GetInbox([FromQuery] string status = "Pending", [FromQuery] int limit = 50)
-        => Ok(await _service.ListInbox(User, status, limit));
+ 
+/* 
+    [HttpGet("users")]
+    public async Task<ActionResult<List<UserDto>>> GetUsers()
+    {
+        return Ok(await _service.GetUsers());
+    }
+    [HttpGet("requests")]
+public async Task<ActionResult<InboxListResponse>> ListRequests()
+ 
+{
+    return Ok(await _service.ListRequests());
+} */
 
-    [HttpGet("{id}")]
-    public async Task<ActionResult<ApprovalDetailDto>> GetDetail([FromRoute] string id)
-        => Ok(await _service.GetDetail(User, id));
-
-    [HttpPost("{id}/approve")]
+   /*  [HttpPost("{id}/approve")]
     [Authorize(Policy = "ApproveLpo")]
     public async Task<ActionResult<ApprovalActionResponse>> Approve(
         [FromRoute] string id, [FromBody] ApprovalActionRequest req)
@@ -37,5 +44,5 @@ public sealed class InboxController : ControllerBase
     [HttpPost("{id}/clarify")]
     public async Task<ActionResult<ApprovalActionResponse>> Clarify(
         [FromRoute] string id, [FromBody] ApprovalClarifyRequest req)
-        => Ok(await _service.Clarify(User, id, req.Question));
+        => Ok(await _service.Clarify(User, id, req.Question));  */
 }

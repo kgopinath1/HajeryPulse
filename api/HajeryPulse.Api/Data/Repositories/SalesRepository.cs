@@ -7,11 +7,11 @@ namespace HajeryPulse.Api.Data.Repositories;
 public interface ISalesRepository
 {
     Task<WTSummaryDto>      GetSummary(string asOfDate, string bt,string period = "week");
-    Task<MarginAnalysisDto> GetMargin(string asOfDate, string bt);
+    Task<MarginAnalysisDto> GetMargin(string asOfDate, string bt,string period = "week");
     Task<SalesQualityDto>   GetQuality(string asOfDate, string bt, string period = "week");
     Task<OrgNodeDto>        GetOrgNode(string asOfDate, string bt, string parent, string period = "week");
-    Task<IEnumerable<TopBrandDto>>    GetTopBrands(string asOfDate, string bt, string period, int limit);
-    Task<IEnumerable<TopCustomerDto>> GetTopCustomers(string asOfDate, string bt, string period, int limit);
+    Task<IEnumerable<TopBrandDto>>    GetTopBrands(string asOfDate, string bt, string period, int limit,string parent = "root");
+    Task<IEnumerable<TopCustomerDto>> GetTopCustomers(string asOfDate, string bt, string period, int limit,string parent ="root");
 }
 
 public sealed class SalesRepository : ISalesRepository
@@ -30,21 +30,22 @@ public sealed class SalesRepository : ISalesRepository
 
         var head  = await multi.ReadFirstAsync<dynamic>();
         var spark = (await multi.ReadAsync<decimal>()).ToArray();
+         var sparkLY  = (await multi.ReadAsync<decimal>()).ToArray();
 
         return new WTSummaryDto(
             asOfDate, bt, period,
             new RevenuePoint((decimal)head.RevenueKwd, (decimal)head.WowPct, (string)head.GrowthType),
             new WTKpis((int)head.NewOrders, (decimal)head.AvgOrderValueKwd, (decimal)head.AvgOrderValuePct,(decimal)head.PipelineAmount,
                        (int)head.ActiveTenders, (decimal)head.AvgTenderValueKwd,(decimal)head.AvgTenderValuePct),
-            spark);
+            spark,sparkLY);
     }
 
-    public async Task<MarginAnalysisDto> GetMargin(string asOfDate, string bt)
+    public async Task<MarginAnalysisDto> GetMargin(string asOfDate, string bt, string period = "week")
     {
         using var conn = await _factory.OpenAsync();
         using var multi = await conn.QueryMultipleAsync(
             "app.sp_GetWTMargin",
-            new { AsOfDate = asOfDate, Bt = bt },
+            new { AsOfDate = asOfDate, Bt = bt, Period = period },
             commandType: CommandType.StoredProcedure);
 
         var h = await multi.ReadFirstAsync<dynamic>();
@@ -61,7 +62,7 @@ public sealed class SalesRepository : ISalesRepository
     public async Task<SalesQualityDto> GetQuality(string asOfDate, string bt,string period = "week")
     {
         using var conn = await _factory.OpenAsync();
-        return await conn.QueryFirstAsync<SalesQualityDto>(
+        return await conn.QueryFirstOrDefaultAsync<SalesQualityDto>(
             "app.sp_GetWTSalesQuality",
             new { AsOfDate = asOfDate, Bt = bt, Period = period },
             commandType: CommandType.StoredProcedure);
@@ -75,26 +76,26 @@ public sealed class SalesRepository : ISalesRepository
             new { AsOfDate = asOfDate, Bt = bt, Parent = parent, Period = period },
             commandType: CommandType.StoredProcedure);
 
-        var h = await multi.ReadFirstAsync<dynamic>();
+        var h = await multi.ReadFirstOrDefaultAsync<dynamic>();
         var children = (await multi.ReadAsync<OrgChildDto>()).ToArray();
         return new OrgNodeDto((string)h.Level, (string)h.Label, parent, children);
     }
 
-    public async Task<IEnumerable<TopBrandDto>> GetTopBrands(string asOfDate, string bt, string period, int limit)
+    public async Task<IEnumerable<TopBrandDto>> GetTopBrands(string asOfDate, string bt, string period, int limit,string parent ="root")
     {
         using var conn = await _factory.OpenAsync();
         return await conn.QueryAsync<TopBrandDto>(
             "app.sp_GetTopBrands",
-            new { AsOfDate = asOfDate, Bt = bt, Period = period, Limit = limit },
+            new { AsOfDate = asOfDate, Bt = bt, Period = period, Limit = limit, Parent = parent },
             commandType: CommandType.StoredProcedure);
     }
 
-    public async Task<IEnumerable<TopCustomerDto>> GetTopCustomers(string asOfDate, string bt, string period, int limit)
+    public async Task<IEnumerable<TopCustomerDto>> GetTopCustomers(string asOfDate, string bt, string period, int limit,string parent ="root")
     {
         using var conn = await _factory.OpenAsync();
         return await conn.QueryAsync<TopCustomerDto>(
             "app.sp_GetTopCustomers",
-            new { AsOfDate = asOfDate, Bt = bt, Period = period, Limit = limit },
+            new { AsOfDate = asOfDate, Bt = bt, Period = period, Limit = limit, Parent = parent },
             commandType: CommandType.StoredProcedure);
     }
 }

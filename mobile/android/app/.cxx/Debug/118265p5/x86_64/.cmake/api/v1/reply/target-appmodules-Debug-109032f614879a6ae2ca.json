@@ -340,10 +340,6 @@
 		},
 		{
 			"backtrace" : 4,
-			"id" : "react_codegen_rnreanimated::@8afabad14bfffa3f8b9a"
-		},
-		{
-			"backtrace" : 4,
 			"id" : "react_codegen_rnscreens::@25bcbd507e98d3a854ad"
 		},
 		{
@@ -353,6 +349,10 @@
 		{
 			"backtrace" : 4,
 			"id" : "react_codegen_safeareacontext::@7984cd80db47aa7b952a"
+		},
+		{
+			"backtrace" : 4,
+			"id" : "react_codegen_rnreanimated::@8afabad14bfffa3f8b9a"
 		},
 		{
 			"backtrace" : 4,
