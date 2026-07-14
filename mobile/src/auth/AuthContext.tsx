@@ -2,21 +2,18 @@
  * AuthContext — single source of truth for the authenticated user.
  *
  * On boot:
- *   1. Check for a stored refresh token in Keychain
- *   2. If present, prompt biometric → if ok, exchange refresh for access token
- *   3. If absent or biometric failed → show LoginScreen
+ *   1. Check MSAL for a cached account from a previous sign-in
+ *   2. If present, prompt biometric → if ok, silently acquire a fresh token
+ *   3. Fetch the user profile from /auth/me using that token
+ *   4. If any step fails or there's no cached account → show LoginScreen
  *
  * Exposes:
  *   user, isLoading, signIn(), signOut(), reauthenticate()
  */
 import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
-import { exchangeAuthCode } from '@api/auth';
-import {
-  setAccessToken, clearAccessToken,
-  storeRefreshToken, getStoredRefreshToken, clearRefreshToken,
-  refreshAccessToken,
-} from './tokens';
-import { startEntraIdSignIn } from './entraId';
+import { getMe, signOut as signOutOnServer } from '@api/auth';
+import { setAccessToken, clearAccessToken } from './tokens';
+import { signInWithEntraId, acquireTokenSilently, signOutEntraId, hasCachedAccount } from './entraId';
 import { requireBiometric } from './biometric';
 import { AuthUser } from '@types/domain';
 
@@ -37,25 +34,33 @@ export function AuthProvider({ children }: { children: React.ReactNode }): React
   // Boot: try to restore session
   useEffect(() => {
     (async () => {
-      const rt = await getStoredRefreshToken();
-      if (!rt) {
+      const cached = await hasCachedAccount();
+      if (!cached) {
         setIsLoading(false);
         return;
       }
+
       const ok = await requireBiometric('Unlock Hajery Pulse');
       if (!ok) {
         setIsLoading(false);
         return;
       }
-      const newToken = await refreshAccessToken();
-      if (newToken) {
-        // The user payload comes back from refreshSession in production —
-        // for now we rely on a /me endpoint or the session payload from refresh.
-        // Keeping the structure flexible until that's wired.
-        setUser({
-          id: 'restored', name: 'Executive User',
-          email: 'user@hajerygroup.com', roles: ['ceo'], scopedBuCodes: [],
-        });
+
+      const session = await acquireTokenSilently();
+      if (!session) {
+        setIsLoading(false);
+        return;
+      }
+
+      setAccessToken(session.accessToken, session.expiresOn);
+      try {
+        const me = await getMe();
+        setUser(me);
+      } catch {
+        // MSAL had a valid cached session but the API rejected/errored —
+        // treat as signed out rather than showing a broken authenticated state.
+        clearAccessToken();
+        setUser(null);
       }
       setIsLoading(false);
     })();
@@ -64,19 +69,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }): React
   const signIn = useCallback(async () => {
     setIsLoading(true);
     try {
-      const { code, codeVerifier } = await startEntraIdSignIn();
-      const session = await exchangeAuthCode({ code, codeVerifier });
-      setAccessToken(session.accessToken, session.expiresAt);
-      await storeRefreshToken(session.refreshToken);
-      setUser(session.user);
+      const session = await signInWithEntraId();
+      setAccessToken(session.accessToken, session.expiresOn);
+      const me = await getMe();
+      setUser(me);
     } finally {
       setIsLoading(false);
     }
   }, []);
 
   const signOut = useCallback(async () => {
+    try {
+      await signOutOnServer();
+    } catch {
+      // Best-effort — don't block local sign-out on a network/API failure.
+    }
+    await signOutEntraId();
     clearAccessToken();
-    await clearRefreshToken();
     setUser(null);
   }, []);
 

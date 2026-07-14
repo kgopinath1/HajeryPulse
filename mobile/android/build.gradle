@@ -6,10 +6,16 @@ buildscript {
         targetSdkVersion = 36
         ndkVersion = "27.1.12297006"
         kotlinVersion = "2.1.20"
+		Msal_compileSdkVersion = 36
+        Msal_targetSdkVersion = 36
+        Msal_minSdkVersion = 24
     }
     repositories {
         google()
         mavenCentral()
+		 maven {
+            url 'https://pkgs.dev.azure.com/MicrosoftDeviceSDK/DuoSDK-Public/_packaging/Duo-SDK-Feed/maven/v1'
+        }
     }
     dependencies {
         classpath("com.android.tools.build:gradle")

@@ -3,12 +3,12 @@ using HajeryPulse.Api.Data;
 using HajeryPulse.Api.Data.Repositories;
 using HajeryPulse.Api.Middleware;
 using HajeryPulse.Api.Services;
-using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.Data.SqlClient;
 using Microsoft.Identity.Web;
 using Serilog;
 using StackExchange.Redis;
-using System.Security.Claims;
+using Microsoft.AspNetCore.Authentication.JwtBearer; 
+
 
 var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddLogging();
@@ -22,32 +22,20 @@ builder.Host.UseSerilog((ctx, lc) => lc
 
 
 // ---------- Auth ----------
-// Registers JWT bearer with Entra ID. The settings come from appsettings.json
-// under the "EntraId" section: TenantId, ClientId, Audience, Authority.
+// Real Entra ID validation. Settings come from appsettings.json under "EntraId":
+// TenantId, ClientId, Audience. Fill those in with the values from your API
+// app registration before this will actually validate tokens.
 builder.Services
     .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
-
-.AddJwtBearer(options =>
-{
-    options.RequireHttpsMetadata = false;
-    options.TokenValidationParameters = new Microsoft.IdentityModel.Tokens.TokenValidationParameters
-    {
-        ValidateIssuer = false,
-        ValidateAudience = false,
-        ValidateIssuerSigningKey = true,
-        RoleClaimType = ClaimTypes.Role,
-        NameClaimType = ClaimTypes.Name,
-        IssuerSigningKey = new Microsoft.IdentityModel.Tokens.SymmetricSecurityKey(
-            System.Text.Encoding.UTF8.GetBytes("TTHIS_IS_MY_DEV_SECRET_KEY_1234567890"))
-    };
-});
-
-//.AddMicrosoftIdentityWebApi(builder.Configuration.GetSection("EntraId"));
+    .AddMicrosoftIdentityWebApi(builder.Configuration.GetSection("EntraId"));
 
 builder.Services.AddAuthorization(options =>
 {
-    options.AddPolicy("ApproveLpo",   p => p.RequireRole("ceo", "cfo", "approver_lpo"));
-    options.AddPolicy("ApproveAsset", p => p.RequireRole("ceo", "cfo", "approver_asset"));
+    // TODO: restore real role checks once role source (App Roles vs groups)
+    // is decided: RequireRole("ceo","cfo","approver_lpo") etc.
+    // For now, any authenticated user has full access to every screen.
+    options.AddPolicy("ApproveLpo",   p => p.RequireAuthenticatedUser());
+    options.AddPolicy("ApproveAsset", p => p.RequireAuthenticatedUser());
     options.AddPolicy("ViewSales",    p => p.RequireAuthenticatedUser());
 });
 
@@ -74,6 +62,7 @@ builder.Services.AddScoped<ISalesRepository,   SalesRepository>();
 builder.Services.AddScoped<IPharmaRepository,  PharmaRepository>();
 builder.Services.AddScoped<IFBRepository,      FBRepository>();
 builder.Services.AddScoped<IFinanceRepository, FinanceRepository>();
+builder.Services.AddScoped<IHomeRepository,    HomeRepository>();
 builder.Services.AddHttpClient<IInboxRepository, InboxRepository>(client =>
 {
     client.BaseAddress = new Uri("http://192.168.10.147:8086/");
@@ -85,7 +74,7 @@ builder.Services.AddScoped<IPharmaService,  PharmaService>();
 builder.Services.AddScoped<IFBService,      FBService>();
 builder.Services.AddScoped<IFinanceService, FinanceService>();
 builder.Services.AddScoped<IInboxService, InboxService>();
-
+builder.Services.AddScoped<IHomeService,    HomeService>();
 
 // ---------- API + Swagger ----------
 builder.Services.AddControllers();
@@ -97,7 +86,6 @@ builder.Services.AddSwaggerGen(c =>
 
 var app = builder.Build();
 
-// ---------- Pipeline ----------
 // ---------- Pipeline ----------
 app.UseSerilogRequestLogging();
 app.UseMiddleware<ExceptionMiddleware>();

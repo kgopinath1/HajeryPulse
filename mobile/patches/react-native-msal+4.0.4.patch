@@ -1,0 +1,56 @@
+diff --git a/node_modules/react-native-msal/android/build.gradle b/node_modules/react-native-msal/android/build.gradle
+index 6c59f86..b9969f5 100644
+--- a/node_modules/react-native-msal/android/build.gradle
++++ b/node_modules/react-native-msal/android/build.gradle
+@@ -1,20 +1,16 @@
+ buildscript {
+   repositories {
+     google()
+-    jcenter()
++    mavenCentral()
+   }
+-
+   dependencies {
+     classpath 'com.android.tools.build:gradle:4.0.2'
+   }
+ }
+-
+ apply plugin: 'com.android.library'
+-
+ def safeExtGet(prop, fallback) {
+   rootProject.ext.has(prop) ? rootProject.ext.get(prop) : fallback
+ }
+-
+ android {
+   compileSdkVersion safeExtGet('Msal_compileSdkVersion', 29)
+   defaultConfig {
+@@ -23,7 +19,6 @@ android {
+     versionCode 1
+     versionName "1.0"
+   }
+-
+   buildTypes {
+     release {
+       minifyEnabled false
+@@ -37,7 +32,6 @@ android {
+     targetCompatibility JavaVersion.VERSION_1_8
+   }
+ }
+-
+ repositories {
+   mavenLocal()
+   maven {
+@@ -45,9 +39,11 @@ repositories {
+     url("$rootDir/../node_modules/react-native/android")
+   }
+   google()
+-  jcenter()
++  mavenCentral()
++  maven {
++    url 'https://pkgs.dev.azure.com/MicrosoftDeviceSDK/DuoSDK-Public/_packaging/Duo-SDK-Feed/maven/v1'
++  }
+ }
+-
+ dependencies {
+   // noinspection GradleDynamicVersion
+   implementation 'com.facebook.react:react-native:+' // From node_modules

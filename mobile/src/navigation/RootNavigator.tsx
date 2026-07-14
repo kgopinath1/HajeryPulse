@@ -6,6 +6,7 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { useAuth } from '@auth/AuthContext';
 import { LoginScreen } from '@screens/LoginScreen';
 import { ApprovalDetailScreen } from '@screens/ApprovalDetailScreen';
+import { ProfileScreen } from '@screens/ProfileScreen';
 import { AppTabs } from './AppTabs';
 import { RootStackParamList } from './types';
 import { theme } from '@theme/index';
@@ -47,6 +48,11 @@ export function RootNavigator(): React.JSX.Element {
               name="ApprovalDetail"
               component={ApprovalDetailScreen}
               options={{ headerShown: true, title: 'Approval' }}
+            />
+            <Stack.Screen
+              name="Profile"
+              component={ProfileScreen}
+              options={{ headerShown: true, title: 'Profile' }}
             />
           </>
         ) : (

@@ -271,3 +271,24 @@ export interface AuthSession {
   expiresAt: string;
   user: AuthUser;
 }
+
+// Home
+export interface CombinedRevenue {
+  totalRevenueKwd: number;
+  growthPct: number;
+  growthType: string;
+  fbRevenueKwd: number;
+  pharmaRevenueKwd: number;
+}
+
+export interface HomeQuickKpis {
+  totalOrders: number;
+  ordersDeltaPct: number;
+  avgOrderValueKwd: number;
+  avgOrderValueDeltaPct: number;
+  grossMarginPct: number;
+  grossMarginDeltaPp: number;
+  fulfillmentPct: number;
+  fulfillmentDeltaPp: number;
+  growthType: string;
+}

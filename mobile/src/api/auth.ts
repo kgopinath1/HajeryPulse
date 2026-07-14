@@ -1,22 +1,19 @@
-import { apiClient, post } from './client';
-import { AuthSession } from '@types/domain';
+import { apiClient, get } from './client';
+import { AuthUser } from '@types/domain';
 
-export interface AuthExchangeRequest {
-  code: string;
-  codeVerifier: string;
+/**
+ * Fetch the signed-in user's profile. The API derives this from the
+ * validated Entra ID token's claims — see AuthController's /me endpoint.
+ */
+export async function getMe(): Promise<AuthUser> {
+  return get<AuthUser>('/auth/me');
 }
 
-/** Exchange Entra ID auth code for a session. */
-export async function exchangeAuthCode(req: AuthExchangeRequest): Promise<AuthSession> {
-  return post<AuthSession>('/auth/exchange', req);
-}
-
-/** Refresh access token. */
-export async function refreshSession(refreshToken: string): Promise<AuthSession> {
-  return post<AuthSession>('/auth/refresh', { refreshToken });
-}
-
-/** Sign out — revokes refresh token server-side. */
+/**
+ * Sign out — lets the API log the event for audit purposes. Actual
+ * session teardown (clearing MSAL's cached account) happens on-device
+ * via signOutEntraId(), called separately by AuthContext.
+ */
 export async function signOut(): Promise<void> {
   await apiClient.post('/auth/signout');
 }

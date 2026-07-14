@@ -2,6 +2,7 @@ import React from 'react';
 import { Text, View } from 'react-native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import Ionicons from 'react-native-vector-icons/Ionicons';
+import { HomeScreen }              from '@screens/HomeScreen';
 import { WholesaleTenderScreen } from '@screens/WholesaleTenderScreen';
 import { PharmaciesScreen }       from '@screens/PharmaciesScreen';
 import { FBScreen }                from '@screens/FBScreen';
@@ -9,7 +10,6 @@ import { FinanceOpsScreen }        from '@screens/FinanceOpsScreen';
 import { InboxScreen }             from '@screens/InboxScreen';
 import { AppTabsParamList } from './types';
 import { theme } from '@theme/index';
-import { LoginScreen } from '@/screens/LoginScreen';
 
 const Tab = createBottomTabNavigator<AppTabsParamList>();
 
@@ -21,6 +21,7 @@ const tabIcon = (iconName: string) => ({ color, size }: { color: string; size: n
 export function AppTabs(): React.JSX.Element {
   return (
     <Tab.Navigator
+      initialRouteName="Home"
       screenOptions={{
         tabBarStyle: {
           backgroundColor: theme.colors.surface,
@@ -38,15 +39,14 @@ export function AppTabs(): React.JSX.Element {
       }}
     >
 
-      
-     {/*  <Tab.Screen
-       name="Login"
-       component={LoginScreen}
+     <Tab.Screen
+       name="Home"
+       component={HomeScreen}
        options={{
-         title: 'Login',
-         tabBarIcon: tabIcon('briefcase-outline'),
+         title: 'Home',
+         tabBarIcon: tabIcon('home-outline'),
        }}
-     /> */}
+     />
 
      <Tab.Screen
        name="WholesaleTender"

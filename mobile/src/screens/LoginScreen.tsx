@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import {
-  Text, View, TouchableOpacity, ActivityIndicator, StyleSheet, Alert,
+  Text, View, TouchableOpacity, ActivityIndicator, StyleSheet, Alert, Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '@auth/AuthContext';
@@ -15,6 +15,7 @@ export function LoginScreen(): React.JSX.Element {
     try {
       await signIn();
     } catch (e: any) {
+     console.log('SIGN IN ERROR:', e); // TEMP — see the real error
       Alert.alert('Sign-in failed', e.message ?? 'Please try again.');
     } finally {
       setBusy(false);
@@ -24,12 +25,20 @@ export function LoginScreen(): React.JSX.Element {
   return (
     <SafeAreaView style={styles.safe}>
       <View style={styles.brand}>
-        <Text style={styles.logo}>Hajery</Text>
-        <Text style={styles.logoBold}>PULSE</Text>
+        <Image
+          source={require('@assets/images/MNH Logo.png')}
+          style={styles.logoImage}
+          resizeMode="contain"
+        />
+        <View style={styles.wordmark}>
+          <Text style={styles.logo}>Hajery</Text>
+          <Text style={styles.logoBold}>PULSE</Text>
+        </View>
       </View>
 
       <Text style={styles.tagline}>Executive Mobile App</Text>
-      <Text style={styles.sub}>Sales · Inventory · Approvals</Text>
+      {/* <Text style={styles.sub}>Sales · Inventory · Approvals</Text> */}
+      <Text style={styles.sub}>Sales · FnB · Pharmacy</Text>
 
       <View style={styles.actions}>
         <TouchableOpacity style={styles.btn} onPress={onSignIn} disabled={busy}>
@@ -39,7 +48,7 @@ export function LoginScreen(): React.JSX.Element {
             <Text style={styles.btnText}>Sign in with Microsoft</Text>
           )}
         </TouchableOpacity>
-        <Text style={styles.hint}>You'll be prompted for FaceID / fingerprint after sign-in.</Text>
+        {/* <Text style={styles.hint}>You'll be prompted for FaceID / fingerprint after sign-in.</Text> */}
       </View>
 
       <Text style={styles.footer}>Hajery Group · v1.0.0</Text>
@@ -53,14 +62,20 @@ const styles = StyleSheet.create({
     alignItems: 'center', justifyContent: 'center', padding: 24,
   },
   brand: { alignItems: 'center', marginBottom: 20 },
+  logoImage: {
+    width: 180,
+    height: 100,
+    marginBottom: 12,
+  },
+  wordmark: { alignItems: 'center' },
   logo:  {
     fontFamily: theme.fonts.numeric,
-    fontSize: 36, fontWeight: '300',
+    fontSize: 40, fontWeight: '300',
     color: theme.colors.gold, letterSpacing: 4,
   },
   logoBold: {
     fontFamily: theme.fonts.numeric,
-    fontSize: 36, fontWeight: '700',
+    fontSize: 44, fontWeight: '700',
     color: theme.colors.text0, letterSpacing: 8, marginTop: -8,
   },
   tagline: { color: theme.colors.text1, fontSize: 14, marginTop: 18 },
@@ -76,7 +91,7 @@ const styles = StyleSheet.create({
     color: theme.colors.bg0, fontWeight: '700',
     fontSize: 14, letterSpacing: 0.4,
   },
-  hint:   { color: theme.colors.text2, fontSize: 11, marginTop: 12, textAlign: 'center' },
+  hint:   { color: theme.colors.text2, fontSize: 15, marginTop: 12, textAlign: 'center' },
   footer: {
     position: 'absolute', bottom: 30,
     color: theme.colors.text3, fontSize: 10, letterSpacing: 0.6,
