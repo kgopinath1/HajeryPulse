@@ -17,3 +17,46 @@ workflows:
           ./gradlew assembleDebug
     artifacts:
       - mobile/android/app/build/outputs/**/*.apk
+
+  ios-simulator-build:
+    name: iOS Simulator Build (No Signing)
+    max_build_duration: 60
+    instance_type: mac_mini_m2
+    environment:
+      node: 20
+      vars:
+        PROJECT_PATH: mobile
+        XCODE_WORKSPACE: "HajeryPulse.xcworkspace"   # adjust to match your actual .xcworkspace filename inside mobile/ios/
+        XCODE_SCHEME: "HajeryPulse"                   # adjust to match your actual Xcode scheme name
+    scripts:
+      - name: Install npm dependencies
+        script: |
+          cd $PROJECT_PATH
+          npm install
+
+      - name: Install CocoaPods dependencies
+        script: |
+          cd $PROJECT_PATH/ios
+          pod install
+
+      - name: Build for iOS Simulator
+        script: |
+          cd $PROJECT_PATH/ios
+          xcodebuild build \
+            -workspace "$XCODE_WORKSPACE" \
+            -scheme "$XCODE_SCHEME" \
+            -configuration Debug \
+            -sdk iphonesimulator \
+            -derivedDataPath ../build \
+            CODE_SIGNING_ALLOWED=NO
+
+    artifacts:
+      - mobile/build/Build/Products/Debug-iphonesimulator/*.app
+
+    publishing:
+      email:
+        recipients:
+          - your-email@hajery.com   # replace with your email
+        notify:
+          success: true
+          failure: true
