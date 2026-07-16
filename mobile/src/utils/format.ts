@@ -78,3 +78,8 @@ export function fmtYoyPp(value: number): string {
 export function initials(s: string, max = 2): string {
   return (s.match(/[A-Z]/g) || []).slice(0, max).join('') || s.slice(0, max).toUpperCase();
 }
+
+export function fmtPpNumber(value: number): string {
+  const sign = value > 0 ? '+' : '';
+  return `${sign}${value.toFixed(1)}`;
+}

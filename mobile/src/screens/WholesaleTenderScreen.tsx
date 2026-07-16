@@ -24,11 +24,12 @@ import { Row } from '@components/Row';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import LinearGradient from 'react-native-linear-gradient';
 import { NoDataCard } from '@components/NoDataCard';
+import { InfoToolTip } from '@components/InfoToolTip';
 import { salesApi } from '@api/sales';
 import { defaultAsOfDate } from '@utils/date';
 import { getTrendLabels, getPeriodLabel, btLabel } from '@utils/labels';
 import { MultiSparkline } from '@components/MultiSparkline';
-import { fmtKwd, fmtPct, fmtInt, fmtYoy, fmtYoyPp, initials, fmtKwdAsIs } from '@utils/format';
+import { fmtKwd, fmtPct, fmtInt, fmtYoy, fmtYoyPp, fmtPpNumber, fmtKwdAsIs } from '@utils/format';
 import {
   BTFilter, WTSummary, MarginAnalysis, SalesQuality,
   OrgNode, TopBrand, TopCustomer,
@@ -257,7 +258,10 @@ const showNoData = !loading && !hasData;
     <Text style={[styles.heroValue, { color: theme.colors.goldSoft }]}>{fmtPct(margin.marginPct)}</Text>
     <View style={styles.marginHeaderRow}>
       <Text style={styles.subtle}>vs {fmtPct(margin.marginPctLY)} last period selected</Text>
-      <Chip label={`${fmtYoyPp(margin.marginYoyPp)} ${periodLabel}`} tone={margin.marginYoyPp >= 0 ? 'green' : 'red'} />
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+        <Chip label={`${fmtPpNumber(margin.marginYoyPp)} ${periodLabel}`} tone={margin.marginYoyPp >= 0 ? 'green' : 'red'} />
+        <InfoToolTip text="Change in margin percentage, not percent change. E.g. 22.0% → 25.0% margin shows as +3, meaning a 3 percentage point move." />
+      </View>
     </View>
 
     {period !== 'day' && (
@@ -284,7 +288,7 @@ const showNoData = !loading && !hasData;
     )}
 
     <View style={styles.kpiGridInner}>
-      <KpiTile label="Net sales" value={fmtKwd(margin.netSalesKwd)} delta={{
+      <KpiTile label="Net sales" value={fmtKwd(margin.netSalesKwd)}  delta={{
         value: (
           <>
             <Text style={{ color: margin.salesYoyPct >= 0 ? theme.colors.green : theme.colors.red }}>{fmtPct(margin.salesYoyPct)}</Text>
@@ -314,24 +318,39 @@ const showNoData = !loading && !hasData;
         positive: margin.grossMarginYoyPct >= 0,
       }} />
 
-      <KpiTile
-        label={`${periodLabel} deviation`}
-        value={fmtYoyPp(margin.marginYoyPp)}
-        valueColor={
-          margin.marginYoyPp > 0
-            ? theme.colors.green
-            : margin.marginYoyPp < 0
-              ? theme.colors.red
-              : theme.colors.text2
-        }
-        subtitle={
+<View style={{ flex: 1, minWidth: '47%' }}>
+  <View style={{ position: 'relative' }}>
+    <KpiTile
+      label={`${periodLabel} deviation`}
+      value={fmtPpNumber(margin.marginYoyPp)}
+      valueColor={
+        margin.marginYoyPp > 0
+          ? theme.colors.green
+          : margin.marginYoyPp < 0
+            ? theme.colors.red
+            : theme.colors.text2
+      }
+      delta={{
+        value:
           margin.marginYoyPp > 0
             ? 'Margin expansion'
             : margin.marginYoyPp < 0
               ? 'Margin contraction'
-              : 'No change'
-        }
-      />
+              : 'No change',
+        positive: margin.marginYoyPp >= 0,
+      }}
+    />
+
+    <InfoToolTip
+      text="Change in margin percentage, not percent change. E.g. margin moving from 22.0% to 25.0% shows as +3, meaning 3 percentage points, not a 3% increase."
+      style={{
+        position: 'absolute',
+        top: 8,
+        right: 8,
+      }}
+    />
+  </View>
+</View>
     </View>
   </Card>
 ) : (
@@ -352,10 +371,15 @@ const showNoData = !loading && !hasData;
           {fmtPct(quality.netPct)} of gross retained
         </Text>
       </View>
-      <Chip
-        label={`${fmtYoyPp(quality.netPctDelta)} ${periodLabel}`}
-        tone={quality.netPctDelta >= 0 ? 'green' : 'red'}
-      />
+     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+  <Chip
+    label={`${fmtPpNumber(quality.netPctDelta)} ${periodLabel}`}
+    tone={quality.netPctDelta >= 0 ? 'green' : 'red'}
+  />
+  <InfoToolTip
+    text="Change in net sales retention percentage points versus the previous period. Example: retention improving from 92% to 95% is shown as +3 percentage points, not a 3% increase."
+  />
+</View>
     </View>
 
     <View style={{ marginTop: 16, gap: 12 }}>

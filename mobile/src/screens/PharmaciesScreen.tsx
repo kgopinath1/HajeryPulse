@@ -24,12 +24,13 @@ import { StackedBar } from '@components/StackedBar';
 import { AsOnDateBar } from '@components/AsOnDateBar';
 import { AsOnDateModal } from '@components/AsOnDateModal';
 import { PickerModal } from '@components/PickerModal';
+import { InfoToolTip } from '@components/InfoToolTip';
 import { getTrendLabels, getPeriodLabel } from '@utils/labels';
 import { Row } from '@components/Row';
 import { NoDataCard } from '@components/NoDataCard';
 import { pharmaApi } from '@api/pharma';
 import { defaultAsOfDate } from '@utils/date';
-import { fmtKwd, fmtPct, fmtInt, fmtYoy, fmtYoyPp, fmtKwdAsIs, fmtKwdSmallVal } from '@utils/format';
+import { fmtKwd, fmtPct, fmtInt, fmtYoy, fmtPpNumber, fmtKwdAsIs, fmtKwdSmallVal } from '@utils/format';
 import {
   Pharmacy, PharmaSummary, PharmaMargin, SalesQuality,
   PharmaChannel, PharmaPaymentRow, PharmaCategoryRow,
@@ -341,8 +342,15 @@ const getTrendLabels = (period: string, length: number): string[] => {
     <Text style={[styles.hero, { color: theme.colors.goldSoft }]}>{fmtPct(margin.marginPct)}</Text>
     <View style={styles.marginHeaderRow}>
       <Text style={styles.subtle}>vs {fmtPct(margin.marginPctLY)} last period selected</Text>
-      <Chip label={`${fmtYoyPp(margin.marginDeviationPp)} ${periodLabel}`} tone={margin.marginDeviationPp >= 0 ? 'green' : 'red'} />
-    </View>
+<View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+  <Chip
+    label={`${fmtPpNumber(margin.marginDeviationPp)} ${periodLabel}`}
+    tone={margin.marginDeviationPp >= 0 ? 'green' : 'red'}
+  />
+  <InfoToolTip
+    text="Change in margin percentage, not percent change. Example: margin moving from 22.0% to 25.0% is shown as +3 percentage points, not a 3% increase."
+  />
+</View>    </View>
 
     {period !== 'day' && (
       <View style={styles.marginTrend}>
@@ -423,24 +431,37 @@ const getTrendLabels = (period: string, length: number): string[] => {
         subtitle="After discount & returns"
       />
 
-      <KpiTile
-        label={`${periodLabel} DEVIATION`}
-        value={`${margin.marginDeviationPp > 0 ? '+' : ''}${margin.marginDeviationPp.toFixed(1)} %`}
-        valueColor={
-          margin.marginDeviationPp > 0
-            ? theme.colors.green
-            : margin.marginDeviationPp < 0
-              ? theme.colors.red
-              : theme.colors.text2
-        }
-        subtitle={
-          margin.marginDeviationPp > 0
-            ? 'Margin expansion'
-            : margin.marginDeviationPp < 0
-              ? 'Margin contraction'
-              : 'No change'
-        }
-      />
+    <View style={{ flex: 1, minWidth: '47%' }}>
+  <View style={{ position: 'relative' }}>
+    <KpiTile
+      label={`${periodLabel} DEVIATION`}
+      value={`${margin.marginDeviationPp > 0 ? '+' : ''}${margin.marginDeviationPp.toFixed(1)} %`}
+      valueColor={
+        margin.marginDeviationPp > 0
+          ? theme.colors.green
+          : margin.marginDeviationPp < 0
+            ? theme.colors.red
+            : theme.colors.text2
+      }
+      subtitle={
+        margin.marginDeviationPp > 0
+          ? 'Margin expansion'
+          : margin.marginDeviationPp < 0
+            ? 'Margin contraction'
+            : 'No change'
+      }
+    />
+
+    <InfoToolTip
+      text="Change in margin percentage, not percent change. Example: margin moving from 22.0% to 25.0% is shown as +3 percentage points, not a 3% increase."
+      style={{
+        position: 'absolute',
+        top: 8,
+        right: 8,
+      }}
+    />
+  </View>
+</View>
     </View>
   </Card>
 ) : (
@@ -459,10 +480,16 @@ const getTrendLabels = (period: string, length: number): string[] => {
               <Text style={styles.hero}>{fmtKwd(quality.netKwd)}</Text>
               <View style={styles.marginHeaderRow}>
                 <Text style={styles.subtle}>{fmtPct(quality.netPct)} of gross retained</Text>
-                <Chip
-                  label={`${quality.netPctPp >= 0 ? '▲' : '▼'} ${Math.abs(quality.netPctPp || 0).toFixed(1)} pp ${quality.growthType}`}
-                  tone={quality.netPctPp >= 0 ? 'green' : 'red'}
-                />              </View>
+               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+  <Chip
+    label={`${quality.netPctPp >= 0 ? '▲' : '▼'} ${Math.abs(quality.netPctPp || 0).toFixed(1)}  ${quality.growthType}`}
+    tone={quality.netPctPp >= 0 ? 'green' : 'red'}
+  />
+  <InfoToolTip
+    text="Change in net sales retention percentage points versus the previous period. Example: retention improving from 92% to 95% is shown as +3 percentage points, not a 3% increase."
+  />
+</View>        
+                    </View>
               <View style={{ marginTop: 12 }}>
                 {/* Gross sales */}
                 <View style={{ marginBottom: 12 }}>
@@ -501,10 +528,15 @@ const getTrendLabels = (period: string, length: number): string[] => {
               {/* Returns metrics footer */}
               <View style={{ marginTop: 12, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
                 <Text style={{ color: theme.colors.red, fontWeight: '600', fontSize: 12 }}>Returns {fmtPct(quality.returnsPct)} of gross</Text>
-                <Chip
-                  label={`${quality.returnsPctPp >= 0 ? '▼' : '▲'} ${Math.abs(quality.returnsPctPp || 0).toFixed(1)} pp ${quality.growthType}`}
-                  tone={quality.returnsPctPp >= 0 ? 'red' : 'green'}
-                />
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+  <Chip
+    label={`${quality.returnsPctPp >= 0 ? '▼' : '▲'} ${Math.abs(quality.returnsPctPp || 0).toFixed(1)} ${quality.growthType}`}
+    tone={quality.returnsPctPp >= 0 ? 'red' : 'green'}
+  />
+  <InfoToolTip
+    text="Change in sales returns rate versus the previous period, measured in percentage points."
+  />
+</View>
 
               </View>
             </Card>
