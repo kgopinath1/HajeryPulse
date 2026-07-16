@@ -55,13 +55,15 @@ workflows:
       - name: Zip .app for Appetize upload
         script: |
           cd $PROJECT_PATH/build/Build/Products/Debug-iphonesimulator
-          APP_NAME=$(ls | grep .app)
+          APP_NAME=$(ls -d *.app)
+          echo "Found app: $APP_NAME"
           zip -r "$APP_NAME.zip" "$APP_NAME"
 
       - name: Upload to Appetize.io
         script: |
           cd $PROJECT_PATH/build/Build/Products/Debug-iphonesimulator
-          APP_ZIP=$(ls | grep .app.zip)
+          APP_ZIP=$(ls -d *.app.zip)
+          echo "Uploading: $APP_ZIP"
           RESPONSE=$(curl -s -X POST https://api.appetize.io/v1/apps \
             -H "X-API-KEY: $APPETIZE_API_TOKEN" \
             -F "file=@$APP_ZIP" \
