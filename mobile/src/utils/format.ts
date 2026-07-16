@@ -71,7 +71,7 @@ export function fmtYoyPp(value: number): string {
   if (value == null || isNaN(value)) return '—';
   const arrow = value >= 0 ? '▲' : '▼';
   const sign = value >= 0 ? '+' : '';
-  return `${arrow} ${sign}${value.toFixed(1)} %`;
+  return `${arrow} ${sign}${value.toFixed(1)} pp`;
 }
 
 /** Initials from a string, max 2 chars: "Al Anoud Pharmacy" → "AA" */

@@ -259,8 +259,8 @@ const showNoData = !loading && !hasData;
     <View style={styles.marginHeaderRow}>
       <Text style={styles.subtle}>vs {fmtPct(margin.marginPctLY)} last period selected</Text>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-        <Chip label={`${fmtPpNumber(margin.marginYoyPp)} ${periodLabel}`} tone={margin.marginYoyPp >= 0 ? 'green' : 'red'} />
-        <InfoToolTip text="Change in margin percentage, not percent change. E.g. 22.0% → 25.0% margin shows as +3, meaning a 3 percentage point move." />
+        <Chip label={`${fmtYoyPp(margin.marginYoyPp)} ${periodLabel}`} tone={margin.marginYoyPp >= 0 ? 'green' : 'red'} />
+        {/* <InfoToolTip text="Change in margin percentage, not percent change. E.g. 22.0% → 25.0% margin shows as +3, meaning a 3 percentage point move." /> */}
       </View>
     </View>
 
@@ -322,7 +322,7 @@ const showNoData = !loading && !hasData;
   <View style={{ position: 'relative' }}>
     <KpiTile
       label={`${periodLabel} deviation`}
-      value={fmtPpNumber(margin.marginYoyPp)}
+      value={fmtYoyPp(margin.marginYoyPp)}
       valueColor={
         margin.marginYoyPp > 0
           ? theme.colors.green
@@ -341,14 +341,14 @@ const showNoData = !loading && !hasData;
       }}
     />
 
-    <InfoToolTip
+ {/*    <InfoToolTip
       text="Change in margin percentage, not percent change. E.g. margin moving from 22.0% to 25.0% shows as +3, meaning 3 percentage points, not a 3% increase."
       style={{
         position: 'absolute',
         top: 8,
         right: 8,
       }}
-    />
+    /> */}
   </View>
 </View>
     </View>
@@ -373,12 +373,12 @@ const showNoData = !loading && !hasData;
       </View>
      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
   <Chip
-    label={`${fmtPpNumber(quality.netPctDelta)} ${periodLabel}`}
+    label={`${fmtYoyPp(quality.netPctDelta)} ${periodLabel}`}
     tone={quality.netPctDelta >= 0 ? 'green' : 'red'}
   />
-  <InfoToolTip
+ {/*  <InfoToolTip
     text="Change in net sales retention percentage points versus the previous period. Example: retention improving from 92% to 95% is shown as +3 percentage points, not a 3% increase."
-  />
+  /> */}
 </View>
     </View>
 
