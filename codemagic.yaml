@@ -18,6 +18,25 @@ workflows:
     artifacts:
       - mobile/android/app/build/outputs/**/*.apk
 
+  android-release:
+    name: Android Release Build (for Appetize comparison test)
+    max_build_duration: 30
+    environment:
+      node: 20
+      vars:
+        PROJECT_PATH: mobile
+    scripts:
+      - name: Install dependencies
+        script: |
+          cd $PROJECT_PATH
+          npm ci
+      - name: Build Android release APK
+        script: |
+          cd $PROJECT_PATH/android
+          ./gradlew assembleRelease
+    artifacts:
+      - mobile/android/app/build/outputs/**/*.apk
+
   ios-simulator-build:
     name: iOS Simulator Build (No Signing)
     max_build_duration: 60
