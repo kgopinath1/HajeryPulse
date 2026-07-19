@@ -38,7 +38,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }): React
 
     try {
       console.log('Step 1: Checking cached account...');
-      const cached = await hasCachedAccount();
+	  const cached = false;
+      //const cached = await hasCachedAccount();
       console.log('Cached account:', cached);
 
       if (!cached) {
