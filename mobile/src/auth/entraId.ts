@@ -27,7 +27,7 @@ const API_SCOPE = 'api://b6487636-354c-483e-94a4-e408271e36b2/HajeryPulse';
 // from the debug keystore signature hash.
 const REDIRECT_URI = Platform.select({
   android: 'msauth://com.hajerypulse/Xo8WBi6jzSxKDVR4drqm84yr9iU%3D',
-  ios: undefined, // TODO: fill in once iOS bundle ID + redirect URI are set up in Azure
+  ios: 'msauth://com.hajerypulse/Xo8WBi6jzSxKDVR4drqm84yr9iU%3D', // TODO: fill in once iOS bundle ID + redirect URI are set up in Azure
 });
 
 const msalConfig: MSALConfiguration = {
@@ -49,10 +49,25 @@ let pcaInstance: PublicClientApplication | null = null;
 /** Lazily creates + initializes the MSAL client. Safe to call repeatedly. */
 async function getClient(): Promise<PublicClientApplication> {
   if (!pcaInstance) {
-    const client = new PublicClientApplication(msalConfig);
-    await client.init();
-    pcaInstance = client;
+    try {
+      console.log('Creating MSAL client...');
+      console.log('Platform:', Platform.OS);
+      console.log('Redirect URI:', REDIRECT_URI);
+
+      const client = new PublicClientApplication(msalConfig);
+
+      console.log('Initializing MSAL...');
+      await client.init();
+
+      console.log('MSAL initialized.');
+
+      pcaInstance = client;
+    } catch (e) {
+      console.error('MSAL initialization failed:', e);
+      throw e;
+    }
   }
+
   return pcaInstance;
 }
 
