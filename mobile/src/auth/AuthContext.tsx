@@ -1,15 +1,3 @@
-/**
- * AuthContext — single source of truth for the authenticated user.
- *
- * On boot:
- *   1. Check MSAL for a cached account from a previous sign-in
- *   2. If present, prompt biometric → if ok, silently acquire a fresh token
- *   3. Fetch the user profile from /auth/me using that token
- *   4. If any step fails or there's no cached account → show LoginScreen
- *
- * Exposes:
- *   user, isLoading, signIn(), signOut(), reauthenticate()
- */
 import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
 import { getMe, signOut as signOutOnServer } from '@api/auth';
 import { setAccessToken, clearAccessToken } from './tokens';
@@ -33,6 +21,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }): React
 
   // Boot: try to restore session
   useEffect(() => {
+    // TEMP: isolating MSAL as suspected crash cause — bypassing boot auth entirely
+    console.log('TEMP ISOLATION: skipping MSAL boot sequence');
+    setIsLoading(false);
+    return;
+
+    /* ORIGINAL — restore after isolation test
     (async () => {
       const cached = await hasCachedAccount();
       if (!cached) {
@@ -57,13 +51,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }): React
         const me = await getMe();
         setUser(me);
       } catch {
-        // MSAL had a valid cached session but the API rejected/errored —
-        // treat as signed out rather than showing a broken authenticated state.
         clearAccessToken();
         setUser(null);
       }
       setIsLoading(false);
     })();
+    */
   }, []);
 
   const signIn = useCallback(async () => {
