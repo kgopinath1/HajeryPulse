@@ -1,5 +1,5 @@
 import React, { createContext, useContext } from 'react';
-import { AuthUser } from '@types/domain';
+import type { AuthUser } from '@types/domain';
 
 interface AuthContextValue {
   user: AuthUser | null;
@@ -11,7 +11,11 @@ interface AuthContextValue {
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
-export function AuthProvider({ children }: { children: React.ReactNode }) {
+export function AuthProvider({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   return (
     <AuthContext.Provider
       value={{
