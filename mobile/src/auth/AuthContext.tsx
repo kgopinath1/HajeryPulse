@@ -33,50 +33,59 @@ export function AuthProvider({ children }: { children: React.ReactNode }): React
 
   // Boot: try to restore session
   useEffect(() => {
-    (async () => {
-      const cached = await hasCachedAccount();
-      if (!cached) {
-        setIsLoading(false);
-        return;
-      }
+  (async () => {
+    console.log('========== AUTH BOOT STARTED ==========');
 
-      const ok = await requireBiometric('Unlock Hajery Pulse');
-      if (!ok) {
-        setIsLoading(false);
-        return;
-      }
-
-      const session = await acquireTokenSilently();
-      if (!session) {
-        setIsLoading(false);
-        return;
-      }
-
-      setAccessToken(session.accessToken, session.expiresOn);
-      try {
-        const me = await getMe();
-        setUser(me);
-      } catch {
-        // MSAL had a valid cached session but the API rejected/errored —
-        // treat as signed out rather than showing a broken authenticated state.
-        clearAccessToken();
-        setUser(null);
-      }
-      setIsLoading(false);
-    })();
-  }, []);
-
-  const signIn = useCallback(async () => {
-    setIsLoading(true);
     try {
-      const session = await signInWithEntraId();
+      console.log('Step 1: Checking cached account...');
+      const cached = await hasCachedAccount();
+      console.log('Cached account:', cached);
+
+      if (!cached) {
+        console.log('No cached account found.');
+        return;
+      }
+
+      console.log('Step 2: Requesting biometric authentication...');
+      const ok = await requireBiometric('Unlock Hajery Pulse');
+      console.log('Biometric result:', ok);
+
+      if (!ok) {
+        console.log('Biometric authentication failed or cancelled.');
+        return;
+      }
+
+      console.log('Step 3: Acquiring token silently...');
+      const session = await acquireTokenSilently();
+      console.log('Silent token result:', session);
+
+      if (!session) {
+        console.log('No session returned from MSAL.');
+        return;
+      }
+
+      console.log('Step 4: Saving access token...');
       setAccessToken(session.accessToken, session.expiresOn);
+
+      console.log('Step 5: Calling getMe()...');
       const me = await getMe();
+
+      console.log('User loaded successfully:', me);
       setUser(me);
+    } catch (error) {
+      console.error('=======================================');
+      console.error('AUTH BOOT FAILED');
+      console.error(error);
+      console.error('=======================================');
+
+      clearAccessToken();
+      setUser(null);
     } finally {
+      console.log('========== AUTH BOOT FINISHED ==========');
       setIsLoading(false);
     }
-  }, []);
+  })();
+}, []);
 
   const signOut = useCallback(async () => {
     try {
