@@ -135,7 +135,7 @@ workflows:
       - name: Set up code signing
         script: |
           keychain initialize
-          app-store-connect fetch-signing-files "$XCODE_SCHEME" \
+          app-store-connect fetch-signing-files "com.hajerypulse" \
             --type IOS_APP_STORE \
             --create
           keychain add-certificates
