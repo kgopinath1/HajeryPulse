@@ -100,7 +100,7 @@ workflows:
     publishing:
       email:
         recipients:
-          - keerthana.gopinath@hajery.com   # replace with your email
+          - your-email@hajery.com   # replace with your email
         notify:
           success: true
           failure: true
@@ -113,9 +113,6 @@ workflows:
       app_store_connect: Codemagic
     environment:
       node: 20
-      ios_signing:
-        distribution_type: app_store
-        bundle_identifier: com.hajerypulse
       vars:
         PROJECT_PATH: mobile
         XCODE_WORKSPACE: "HajeryPulse.xcworkspace"   # adjust to match your actual .xcworkspace filename inside mobile/ios/
@@ -155,7 +152,7 @@ workflows:
     publishing:
       email:
         recipients:
-          - keerthana.gopinath@hajery.com   # replace with your email
+          - your-email@hajery.com   # replace with your email
         notify:
           success: true
           failure: true
