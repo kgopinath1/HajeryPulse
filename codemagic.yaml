@@ -132,11 +132,15 @@ workflows:
       - name: Set up code signing
         script: |
           keychain initialize
+          app-store-connect certificates create \
+            --type IOS_DISTRIBUTION \
+            --save
           app-store-connect fetch-signing-files "com.hajerypulse" \
             --type IOS_APP_STORE \
             --create
           keychain add-certificates
-          xcode-project use-profiles
+          xcode-project use-profiles \
+            --project "$PROJECT_PATH/ios/$XCODE_WORKSPACE"
 
       - name: Build ipa for distribution
         script: |
