@@ -104,3 +104,61 @@ workflows:
         notify:
           success: true
           failure: true
+
+  ios-testflight:
+    name: iOS TestFlight Release Build
+    max_build_duration: 60
+    instance_type: mac_mini_m2
+    integrations:
+      app_store_connect: Codemagic
+    environment:
+      node: 20
+      ios_signing:
+        distribution_type: app_store
+        bundle_identifier: com.hajerypulse
+      vars:
+        PROJECT_PATH: mobile
+        XCODE_WORKSPACE: "HajeryPulse.xcworkspace"   # adjust to match your actual .xcworkspace filename inside mobile/ios/
+        XCODE_SCHEME: "HajeryPulse"                   # adjust to match your actual Xcode scheme name
+        APP_STORE_APPLE_ID: 6792645958                # TODO: replace with your app's Apple ID from App Store Connect (found in App Information)
+    scripts:
+      - name: Install npm dependencies
+        script: |
+          cd $PROJECT_PATH
+          npm ci
+
+      - name: Install CocoaPods dependencies
+        script: |
+          cd $PROJECT_PATH/ios
+          pod install
+
+      - name: Set up code signing
+        script: |
+          keychain initialize
+          app-store-connect fetch-signing-files "$XCODE_SCHEME" \
+            --type IOS_APP_STORE \
+            --create
+          keychain add-certificates
+          xcode-project use-profiles
+
+      - name: Build ipa for distribution
+        script: |
+          cd $PROJECT_PATH/ios
+          xcode-project build-ipa \
+            --workspace "$XCODE_WORKSPACE" \
+            --scheme "$XCODE_SCHEME"
+
+    artifacts:
+      - mobile/ios/build/ios/ipa/*.ipa
+      - /tmp/xcodebuild_logs/*.log
+
+    publishing:
+      email:
+        recipients:
+          - keerthana.gopinath@hajery.com   # replace with your email
+        notify:
+          success: true
+          failure: true
+      app_store_connect:
+        auth: integration
+        submit_to_testflight: true
