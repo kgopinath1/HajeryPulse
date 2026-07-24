@@ -120,6 +120,7 @@ workflows:
         XCODE_WORKSPACE: "HajeryPulse.xcworkspace"   # adjust to match your actual .xcworkspace filename inside mobile/ios/
         XCODE_SCHEME: "HajeryPulse"                   # adjust to match your actual Xcode scheme name
         APP_STORE_APPLE_ID: 6792645958                # TODO: replace with your app's Apple ID from App Store Connect (found in App Information)
+        TEAM_ID: "32LX6HLFHS"
     scripts:
       - name: Install npm dependencies
         script: |
@@ -131,37 +132,73 @@ workflows:
           cd $PROJECT_PATH/ios
           pod install
 
-      - name: Set up code signing
+      - name: Archive and export signed ipa (manual signing, bypassing Codemagic signing tools)
         script: |
           keychain initialize
-          printf '%s' "$CM_CERTIFICATE" | base64 --decode > /tmp/certificate.p12
-          echo "Decoded file size:"
-          ls -la /tmp/certificate.p12
-          echo "Importing certificate directly via security command:"
           KEYCHAIN_PATH=$(security default-keychain | tr -d '[:space:]"')
+
+          echo "--- Importing certificate ---"
+          printf '%s' "$CM_CERTIFICATE" | base64 --decode > /tmp/certificate.p12
           security import /tmp/certificate.p12 \
             -k "$KEYCHAIN_PATH" \
             -P "$CM_CERTIFICATE_PASSWORD" \
             -T /usr/bin/codesign \
             -T /usr/bin/security \
             -A
-          echo "Verifying identity is now in keychain:"
           security find-identity -v -p codesigning "$KEYCHAIN_PATH"
-          app-store-connect fetch-signing-files "com.hajerypulse" \
-            --type IOS_APP_STORE \
-            --create
-          xcode-project use-profiles \
-            --project "$PROJECT_PATH/ios/$XCODE_WORKSPACE"
 
-      - name: Build ipa for distribution
-        script: |
+          echo "--- Installing provisioning profile ---"
+          mkdir -p "$HOME/Library/MobileDevice/Provisioning Profiles"
+          printf '%s' "$CM_PROVISIONING_PROFILE" | base64 --decode > /tmp/profile.mobileprovision
+          security cms -D -i /tmp/profile.mobileprovision > /tmp/profile.plist
+          PROFILE_UUID=$(/usr/libexec/PlistBuddy -c "Print :UUID" /tmp/profile.plist)
+          PROFILE_NAME=$(/usr/libexec/PlistBuddy -c "Print :Name" /tmp/profile.plist)
+          echo "Profile UUID: $PROFILE_UUID"
+          echo "Profile Name: $PROFILE_NAME"
+          cp /tmp/profile.mobileprovision "$HOME/Library/MobileDevice/Provisioning Profiles/$PROFILE_UUID.mobileprovision"
+
+          echo "--- Archiving ---"
           cd $PROJECT_PATH/ios
-          xcode-project build-ipa \
-            --workspace "$XCODE_WORKSPACE" \
-            --scheme "$XCODE_SCHEME"
+          xcodebuild archive \
+            -workspace "$XCODE_WORKSPACE" \
+            -scheme "$XCODE_SCHEME" \
+            -configuration Release \
+            -archivePath ../build/HajeryPulse.xcarchive \
+            -destination 'generic/platform=iOS' \
+            CODE_SIGN_STYLE=Manual \
+            CODE_SIGN_IDENTITY="Apple Distribution" \
+            "PROVISIONING_PROFILE_SPECIFIER=$PROFILE_NAME" \
+            DEVELOPMENT_TEAM="$TEAM_ID"
+
+          echo "--- Writing export options ---"
+          cat > ../build/ExportOptions.plist << PLIST_EOF
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+            <key>method</key>
+            <string>app-store</string>
+            <key>teamID</key>
+            <string>$TEAM_ID</string>
+            <key>signingStyle</key>
+            <string>manual</string>
+            <key>provisioningProfiles</key>
+            <dict>
+              <key>com.hajerypulse</key>
+              <string>$PROFILE_NAME</string>
+            </dict>
+          </dict>
+          </plist>
+          PLIST_EOF
+
+          echo "--- Exporting ipa ---"
+          xcodebuild -exportArchive \
+            -archivePath ../build/HajeryPulse.xcarchive \
+            -exportPath ../build/ipa \
+            -exportOptionsPlist ../build/ExportOptions.plist
 
     artifacts:
-      - mobile/ios/build/ios/ipa/*.ipa
+      - mobile/build/ipa/*.ipa
       - /tmp/xcodebuild_logs/*.log
 
     publishing:
