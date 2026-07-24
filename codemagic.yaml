@@ -113,6 +113,9 @@ workflows:
       app_store_connect: Codemagic
     environment:
       node: 20
+      ios_signing:
+        distribution_type: app_store
+        bundle_identifier: com.hajerypulse
       vars:
         PROJECT_PATH: mobile
         XCODE_WORKSPACE: "HajeryPulse.xcworkspace"   # adjust to match your actual .xcworkspace filename inside mobile/ios/
@@ -128,16 +131,6 @@ workflows:
         script: |
           cd $PROJECT_PATH/ios
           pod install
-
-      - name: Set up code signing
-        script: |
-          keychain initialize
-          keychain add-certificates
-          app-store-connect fetch-signing-files "com.hajerypulse" \
-            --type IOS_APP_STORE \
-            --create
-          xcode-project use-profiles \
-            --project "$PROJECT_PATH/ios/$XCODE_WORKSPACE"
 
       - name: Build ipa for distribution
         script: |
