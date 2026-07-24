@@ -143,7 +143,10 @@ workflows:
             -out /tmp/certificate.pem
           openssl pkcs12 -export -in /tmp/certificate.pem \
             -out /tmp/certificate.p12 \
-            -passout pass:"$CM_CERTIFICATE_PASSWORD"
+            -passout pass:"$CM_CERTIFICATE_PASSWORD" \
+            -macalg sha1 \
+            -certpbe AES-256-CBC \
+            -keypbe AES-256-CBC
           echo "Importing certificate directly via security command (bypassing Codemagic's cert parser):"
           KEYCHAIN_PATH=$(security default-keychain | tr -d '[:space:]"')
           security import /tmp/certificate.p12 \
