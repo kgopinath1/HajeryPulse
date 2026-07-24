@@ -134,20 +134,10 @@ workflows:
       - name: Set up code signing
         script: |
           keychain initialize
-          printf '%s' "$CM_CERTIFICATE" | base64 --decode > /tmp/certificate_legacy.p12
+          printf '%s' "$CM_CERTIFICATE" | base64 --decode > /tmp/certificate.p12
           echo "Decoded file size:"
-          ls -la /tmp/certificate_legacy.p12
-          echo "Re-encoding legacy .p12 to modern cipher format:"
-          openssl pkcs12 -in /tmp/certificate_legacy.p12 -nodes \
-            -passin pass:"$CM_CERTIFICATE_PASSWORD" -legacy \
-            -out /tmp/certificate.pem
-          openssl pkcs12 -export -in /tmp/certificate.pem \
-            -out /tmp/certificate.p12 \
-            -passout pass:"$CM_CERTIFICATE_PASSWORD" \
-            -macalg sha1 \
-            -certpbe AES-256-CBC \
-            -keypbe AES-256-CBC
-          echo "Importing certificate directly via security command (bypassing Codemagic's cert parser):"
+          ls -la /tmp/certificate.p12
+          echo "Importing certificate directly via security command:"
           KEYCHAIN_PATH=$(security default-keychain | tr -d '[:space:]"')
           security import /tmp/certificate.p12 \
             -k "$KEYCHAIN_PATH" \
