@@ -1,58 +1,77 @@
 /**
- * Home screen — daily snapshot: revenue, quick KPIs.
+ * Home screen — per-business-line revenue snapshot.
+ *
+ * Replaces the old blended-revenue card + Quick KPIs grid with three
+ * tappable revenue cards, in order: Wholesale & Tender → F&B → Pharmacy.
+ * Each card navigates to its business-line screen.
  *
  * Data notes:
- *  - Greeting name comes from useAuth()'s real user (Entra ID claims via /me).
- *  - Revenue is REAL — GET /api/v1/home/revenue-summary (F&B + Pharmacy,
- *    blended growth %; WT excluded for now, see sp_GetHomeCombinedRevenue).
- *  - Quick KPIs are REAL — GET /api/v1/home/quick-kpis, always month-to-date
- *    vs. prior month (MoM), regardless of any period selector elsewhere.
- *    - "Orders" blends WT's real order count with FB/Pharmacy's transaction
- *      counts as a proxy — not strictly the same concept per business line.
- *    - "Gross Margin" is Pharmacy + WT only — F&B has no COGS tracked in
- *      fact.FBSales, so it can't be included.
- *    - "Fulfillment" has no data source anywhere yet — stays a placeholder.
- *  - Urgent approval banner and Pending Approvals list remain commented out —
- *    both depend on InboxController, which is currently fully commented
- *    out server-side. Re-enable once that's built.
+ *  - Each line is fetched independently (allSettled) so one failing API
+ *    doesn't blank the whole Home screen.
+ *  - Period is fixed to 'month' here (Home has no period selector yet);
+ *    change HOME_PERIOD or lift it into state to add one later.
+ *  - Data shapes differ per API and are normalized via the to*Data()
+ *    adapters below into RevenueCardData.
+ *  - Urgent approval banner / Pending Approvals remain disabled — they
+ *    depend on InboxController, which is commented out server-side.
  */
 import React, { useEffect, useState } from 'react';
 import {
-  ScrollView, Text, View, TouchableOpacity, StyleSheet, ActivityIndicator,
+  ScrollView, Text, View, TouchableOpacity, StyleSheet,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 
 import { theme } from '@theme/index';
-import { Card } from '@components/Card';
 import { SectionTitle } from '@components/SectionTitle';
-import { KpiTile } from '@components/KpiTile';
-import { Chip } from '@components/Chip';
-// import { Row } from '@components/Row'; // TODO: re-enable once pending approvals are live
 import { AsOnDateBar } from '@components/AsOnDateBar';
 import { AsOnDateModal } from '@components/AsOnDateModal';
+import { RevenueCard, RevenueCardData, Period } from '@components/RevenueCard';
 import { useAuth } from '@auth/AuthContext';
-import { homeApi } from '@api/home';
 import { defaultAsOfDate } from '@utils/date';
-import { fmtKwd, fmtYoy } from '@utils/format';
 
-interface RevenueState {
-  totalKwd: number;
-  growthPct: number;
-  growthType: string;
+// TODO: adjust these imports to your actual API modules — they should be
+// the same ones WTScreen / FBScreen / PharmacyScreen already use.
+import { salesApi } from '@api/sales';
+import { fbApi } from '@api/fb';
+import { pharmaApi } from '@api/pharma';
+import {
+  BTFilter,
+ FbScopeType,
+} from '@types/domain';
+/** Home always shows month-to-date for now. */
+const HOME_PERIOD: Period = 'month';
+
+/* ------------------------------------------------------------------ */
+/* Adapters — normalize each API's shape into RevenueCardData          */
+/* ------------------------------------------------------------------ */
+
+// WT: summary carries everything, incl. spark/sparkLY
+// (summary.revenue.kwd / .wow / .growthType)
+function toWtData(s: any): RevenueCardData {
+  return {
+    revenueKwd: s.revenue.kwd,
+    growthPct: s.revenue.wow,
+    growthType: s.revenue.growthType,
+    current: s.spark ?? [],
+    previous: s.sparkLY ?? [],
+  };
 }
 
-interface QuickKpisState {
-  totalOrders: number;
-  ordersDeltaPct: number;
-  avgOrderValueKwd: number;
-  avgOrderValueDeltaPct: number;
-  grossMarginPct: number;
-  grossMarginDeltaPp: number;
-  fulfillmentPct: number;
-  fulfillmentDeltaPp: number;
+// F&B and Pharmacy: summary + separate trend response
+// (summary.revenueKwd / .growthPct / .growthType, trend.current/.previous)
+function toLineData(summary: any, trend: any): RevenueCardData {
+  return {
+    revenueKwd: summary.revenueKwd,
+    growthPct: summary.growthPct,
+    growthType: summary.growthType,
+    current: trend?.current ?? [],
+    previous: trend?.previous ?? [],
+  };
 }
+
+/* ------------------------------------------------------------------ */
 
 function initials(name: string): string {
   const parts = name.trim().split(/\s+/);
@@ -75,61 +94,46 @@ export function HomeScreen(): React.JSX.Element {
   const [asOfDate, setAsOfDate] = useState(defaultAsOfDate());
   const [dateModalVisible, setDateModalVisible] = useState(false);
 
-  const [revenue, setRevenue] = useState<RevenueState | null>(null);
-  const [revenueLoading, setRevenueLoading] = useState(true);
+  const [wt, setWt] = useState<RevenueCardData | null>(null);
+  const [fb, setFb] = useState<RevenueCardData | null>(null);
+  const [pharmacy, setPharmacy] = useState<RevenueCardData | null>(null);
+  const [loading, setLoading] = useState(true);
 
-  const [kpis, setKpis] = useState<QuickKpisState | null>(null);
-  const [kpisLoading, setKpisLoading] = useState(true);
-
+const scopeType: FbScopeType = 'all';
+const scopeId: string | null = null;
+const bt: BTFilter = 'both';
+const pharmacyId = 'all';
   const displayName = user?.name || 'there';
 
   useEffect(() => {
     let cancelled = false;
-    setRevenueLoading(true);
+    setLoading(true);
 
-    homeApi.revenueSummary(asOfDate, 'week')
-      .then(r => {
-        if (cancelled) return;
-        setRevenue({
-          totalKwd: r.totalRevenueKwd,
-          growthPct: r.growthPct,
-          growthType: r.growthType,
-        });
-      })
-      .catch(err => {
-        console.error('Failed to load combined revenue:', err);
-      })
-      .finally(() => {
-        if (!cancelled) setRevenueLoading(false);
+    // Each line independently — one failure shouldn't blank the others.
+    // TODO: match method names/signatures to what each screen already calls.
+    const wtP = salesApi.summary(asOfDate, bt, HOME_PERIOD)
+      .then(s => { if (!cancelled) setWt(toWtData(s)); });
+
+    const fbP = Promise.all([
+      fbApi.summary(asOfDate, scopeType, scopeId, HOME_PERIOD),
+      fbApi.trend(asOfDate, scopeType, scopeId, HOME_PERIOD),
+    ]).then(([s, t]) => { if (!cancelled) setFb(toLineData(s, t)); });
+
+    const phP = Promise.all([
+       pharmaApi.summary(asOfDate, pharmacyId, HOME_PERIOD),
+    
+      pharmaApi.trend(asOfDate, pharmacyId,HOME_PERIOD),
+    ]).then(([s, t]) => { if (!cancelled) setPharmacy(toLineData(s, t)); });
+
+    Promise.allSettled([wtP, fbP, phP]).then(results => {
+      results.forEach((r, i) => {
+        if (r.status === 'rejected') {
+          const line = ['WholesaleTenderScreen', 'F&FBScreen', 'PharmaciesScreen'][i];
+          console.error(`Failed to load ${line} revenue:`, r.reason);
+        }
       });
-
-    return () => { cancelled = true; };
-  }, [asOfDate]);
-
-  useEffect(() => {
-    let cancelled = false;
-    setKpisLoading(true);
-
-    homeApi.quickKpis(asOfDate)
-      .then(k => {
-        if (cancelled) return;
-        setKpis({
-          totalOrders: k.totalOrders,
-          ordersDeltaPct: k.ordersDeltaPct,
-          avgOrderValueKwd: k.avgOrderValueKwd,
-          avgOrderValueDeltaPct: k.avgOrderValueDeltaPct,
-          grossMarginPct: k.grossMarginPct,
-          grossMarginDeltaPp: k.grossMarginDeltaPp,
-          fulfillmentPct: k.fulfillmentPct,
-          fulfillmentDeltaPp: k.fulfillmentDeltaPp,
-        });
-      })
-      .catch(err => {
-        console.error('Failed to load quick KPIs:', err);
-      })
-      .finally(() => {
-        if (!cancelled) setKpisLoading(false);
-      });
+      if (!cancelled) setLoading(false);
+    });
 
     return () => { cancelled = true; };
   }, [asOfDate]);
@@ -170,127 +174,49 @@ export function HomeScreen(): React.JSX.Element {
         {/* Date */}
         <AsOnDateBar asOfDate={asOfDate} onPress={() => setDateModalVisible(true)} />
 
-        {/* Revenue — real, blended F&B + Pharmacy via sp_GetHomeCombinedRevenue */}
-        <Card>
-          {revenueLoading && !revenue ? (
-            <ActivityIndicator color={theme.colors.gold} />
-          ) : revenue ? (
-            <View style={{ flexDirection: 'row', alignItems: 'flex-start' }}>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.eyebrow}>REVENUE · {asOfDate}</Text>
-                <Text style={styles.hero}>{fmtKwd(revenue.totalKwd)}</Text>
-                <View style={{ marginTop: 6 }}>
-                  <Chip
-                    label={fmtYoy(revenue.growthPct, revenue.growthType)}
-                    tone={revenue.growthPct >= 0 ? 'green' : 'red'}
-                  />
-                </View>
-                <Text style={styles.helperText}>
-                  Combined: F&amp;B + Pharmacy
-                </Text>
-              </View>
-              <Ionicons name="trending-up" size={40} color={theme.colors.gold} />
-            </View>
-          ) : (
-            <Text style={styles.emptyText}>Revenue unavailable</Text>
-          )}
-        </Card>
+        {/* Business-line revenue cards — WT → F&B → Pharmacy */}
+        <SectionTitle title="Wholesale & Tender" />
+
+        <View style={styles.cardStack}>
+          <RevenueCard
+            title="Wholesale & Tender"
+            period={HOME_PERIOD}
+            data={wt}
+            loading={loading}
+            primaryColor={theme.colors.goldSoft}
+            previousLabel="Last Period"
+            onPress={() => navigation.navigate('WholesaleTender')}
+          />
+
+ <SectionTitle title="Food & Beverage" />
+          <RevenueCard
+            title="Food & Beverage"
+            period={HOME_PERIOD}
+            data={fb}
+            loading={loading}
+            primaryColor={theme.colors.pink}
+            // @ts-expect-error — TODO: use your actual F&B route/tab name
+            onPress={() => navigation.navigate('FB')}
+          />
+<SectionTitle title="Pharmacy" />
+          <RevenueCard
+            title="Pharmacy"
+            period={HOME_PERIOD}
+            data={pharmacy}
+            loading={loading}
+            primaryColor={theme.colors.teal}
+            // @ts-expect-error — TODO: use your actual Pharmacy route/tab name
+            onPress={() => navigation.navigate('Pharmacies')}
+          />
+        </View>
 
         {/* Urgent approval banner — PLACEHOLDER, disabled until Inbox exists
-        {urgentApproval && (
-          <TouchableOpacity
-            style={styles.urgentBanner}
-            // @ts-expect-error — ApprovalDetail lives on the root stack
-            onPress={() => navigation.navigate('ApprovalDetail', { id: urgentApproval.id })}
-          >
-            <Ionicons name="alert-circle" size={20} color={theme.colors.red} />
-            <View style={{ flex: 1, marginLeft: 10 }}>
-              <Text style={styles.urgentTitle}>{urgentApproval.title}</Text>
-              <Text style={styles.urgentSubtitle}>{urgentApproval.subtitle}</Text>
-            </View>
-            <Ionicons name="chevron-forward" size={18} color={theme.colors.text3} />
-          </TouchableOpacity>
-        )}
+        {urgentApproval && ( ... )}
         */}
-
-        {/* Quick KPIs — real, month-to-date vs prior month (MoM), except Fulfillment */}
-        <SectionTitle
-          title="Quick KPIs"
-          rightLabel={
-            <TouchableOpacity onPress={() => {/* TODO: navigate to full KPI screen */}}>
-              <Text style={styles.viewAll}>View all</Text>
-            </TouchableOpacity>
-          }
-        />
-        <View style={styles.kpiGrid}>
-          {kpisLoading && !kpis ? (
-            <Card style={{ flex: 1, minWidth: '100%' }}>
-              <ActivityIndicator color={theme.colors.gold} />
-            </Card>
-          ) : kpis ? (
-            <>
-              <KpiTile
-                label="Orders (blended)"
-                value={String(kpis.totalOrders)}
-                delta={{
-                  value: `${kpis.ordersDeltaPct >= 0 ? '+' : ''}${kpis.ordersDeltaPct.toFixed(1)}%`,
-                  positive: kpis.ordersDeltaPct >= 0,
-                }}
-              />
-              <KpiTile
-                label="Avg. Order Value"
-                value={fmtKwd(kpis.avgOrderValueKwd)}
-                delta={{
-                  value: `${kpis.avgOrderValueDeltaPct >= 0 ? '+' : ''}${kpis.avgOrderValueDeltaPct.toFixed(1)}%`,
-                  positive: kpis.avgOrderValueDeltaPct >= 0,
-                }}
-              />
-              <KpiTile
-                label="Gross Margin (Pharma + WT)"
-                value={`${kpis.grossMarginPct.toFixed(1)}%`}
-                delta={{
-                  value: `${kpis.grossMarginDeltaPp >= 0 ? '+' : ''}${kpis.grossMarginDeltaPp.toFixed(1)}pp`,
-                  positive: kpis.grossMarginDeltaPp >= 0,
-                }}
-                
-              />
-              {/* Fulfillment */}
-              <KpiTile
-                label="Fulfillment (W&T)"
-                value={`${kpis.fulfillmentPct.toFixed(1)}%`}
-                delta={{
-                  value: `${kpis.fulfillmentDeltaPp >= 0 ? '+' : ''}${kpis.fulfillmentDeltaPp.toFixed(1)}pp`,
-                  positive: kpis.fulfillmentDeltaPp >= 0,
-                }}
-              />
-               </>
-          ) : (
-            <Card style={{ flex: 1, minWidth: '100%' }}>
-              <Text style={styles.emptyText}>Quick KPIs unavailable</Text>
-            </Card>
-          )}
-        </View>
 
         {/* Pending approvals — PLACEHOLDER, disabled until Inbox exists
         <SectionTitle title="Pending Approvals" />
-        <Card>
-          {pendingApprovals.length > 0 ? (
-            pendingApprovals.map(a => (
-              <Row
-                key={a.id}
-                avatar={{ initials: a.initials, color: a.color }}
-                title={a.title}
-                subtitle={a.subtitle}
-                amount={fmtKwd(a.amountKwd)}
-                delta={{ label: a.dueLabel, tone: 'neutral' }}
-                // @ts-expect-error — ApprovalDetail lives on the root stack
-                onPress={() => navigation.navigate('ApprovalDetail', { id: a.id })}
-              />
-            ))
-          ) : (
-            <Text style={styles.emptyText}>No pending approvals</Text>
-          )}
-        </Card>
+        ...
         */}
       </ScrollView>
 
@@ -332,27 +258,5 @@ const styles = StyleSheet.create({
   },
   bellBadgeText: { fontSize: 9, fontWeight: '700', color: theme.colors.text0 },
 
-  eyebrow: { fontSize: 11, color: theme.colors.text2, textTransform: 'uppercase', letterSpacing: 0.6 },
-  hero: { fontFamily: theme.fonts.numeric, fontSize: 26, fontWeight: '700', color: theme.colors.text0, marginTop: 4 },
-  helperText: { fontSize: 11, color: theme.colors.text3, marginTop: 6 },
-
-  urgentBanner: {
-    flexDirection: 'row', alignItems: 'center',
-    padding: 14, marginTop: 14, marginBottom: 4,
-    borderRadius: theme.radius.lg,
-    backgroundColor: 'rgba(229,72,77,0.10)',
-    borderWidth: 1, borderColor: 'rgba(229,72,77,0.25)',
-  },
-  urgentTitle: { fontSize: 13, fontWeight: '700', color: theme.colors.red },
-  urgentSubtitle: { fontSize: 11, color: theme.colors.text2, marginTop: 2 },
-
-  viewAll: { fontSize: 12, fontWeight: '600', color: theme.colors.gold },
-  kpiGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 4, marginBottom: 14 },
-
-  emptyText: {
-    color: theme.colors.text2,
-    fontSize: theme.fontSize.sm,
-    textAlign: 'center',
-    paddingVertical: theme.spacing.lg,
-  },
+  cardStack: { gap: 10, marginTop: 4, marginBottom: 14 },
 });

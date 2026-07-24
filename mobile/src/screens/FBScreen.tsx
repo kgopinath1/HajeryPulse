@@ -39,7 +39,7 @@ export function FBScreen(): React.JSX.Element {
   /*  const [showPicker, setShowPicker] = useState(false); */
   const [pickerTab, setPickerTab] = useState<'brands' | 'outlets'>('brands');
   const [pickerVisible, setPickerVisible] = useState(false);
-  const [period, setPeriod] = useState<'day' | 'week' | 'month' | 'ytd'>('week');
+  const [period, setPeriod] = useState<'day' | 'week' | 'month' | 'ytd'>('month');
   const [brands, setBrands] = useState<FBBrand[]>([]);
   const [outlets, setOutlets] = useState<FBOutlet[]>([]);
   const [scopeType, setScopeType] = useState<FbScopeType>('all');
@@ -357,7 +357,7 @@ export function FBScreen(): React.JSX.Element {
             {summary && (summary.covers ?? 0) > 0 ? (
               <View style={styles.kpiGrid}>
                 <KpiTile label="Transactions" value={fmtInt(summary.covers)} delta={{ value: `${summary.coversdelta?.toFixed(1) || 0}%`, positive: summary.coversdelta >= 0 }} />
-                <KpiTile label="Check Avg" value={fmtKwd(summary.ticketKwd)} delta={{ value: `${summary.ticketKwdDelta?.toFixed(1) || 0}%`, positive: summary.ticketKwdDelta >= 0 }} />
+                <KpiTile label="Check Avg" value={fmtKwdSmallVal(summary.ticketKwd)} delta={{ value: `${summary.ticketKwdDelta?.toFixed(1) || 0}%`, positive: summary.ticketKwdDelta >= 0 }} />
 
                 <KpiTile
                   label="Active stores"

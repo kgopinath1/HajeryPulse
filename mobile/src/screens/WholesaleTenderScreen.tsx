@@ -39,7 +39,7 @@ export function WholesaleTenderScreen(): React.JSX.Element {
   const [asOfDate, setAsOfDate] = useState<string>(defaultAsOfDate());
   const [dateModalVisible, setDateModalVisible] = useState(false);
   const [bt, setBT] = useState<BTFilter>('both');
-  const [period, setPeriod] = useState<'day' | 'week' | 'month' | 'ytd'>('week');
+  const [period, setPeriod] = useState<'day' | 'week' | 'month' | 'ytd'>('month');
   const [summary, setSummary] = useState<WTSummary | null>(null);
   const [margin, setMargin] = useState<MarginAnalysis | null>(null);
   const [quality, setQuality] = useState<SalesQuality | null>(null);

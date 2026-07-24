@@ -42,7 +42,7 @@ export function PharmaciesScreen(): React.JSX.Element {
   const [dateModalVisible, setDateModalVisible] = useState(false);
   const [pharmacies, setPharmacies] = useState<Pharmacy[]>([]);
   const [pharmacyId, setPharmacyId] = useState<string>('all');
-  const [period, setPeriod] = useState<'day' | 'week' | 'month' | 'ytd'>('week');
+  const [period, setPeriod] = useState<'day' | 'week' | 'month' | 'ytd'>('month');
   const [pickerVisible, setPickerVisible] = useState(false);
 
   const [summary, setSummary] = useState<PharmaSummary | null>(null);
@@ -74,10 +74,10 @@ useEffect(() => {
         pharmaApi.quality(asOfDate, pharmacyId, period),
         pharmaApi.channels(asOfDate, pharmacyId, period),
         pharmaApi.payments(asOfDate, pharmacyId, period),
-        pharmaApi.categories(asOfDate, pharmacyId, 10),
+        pharmaApi.categories(asOfDate, pharmacyId, 10,period),
         pharmaApi.rxOtcMix(asOfDate, pharmacyId, period),
-        pharmaApi.discountLeaderboard(asOfDate, 10),
-        pharmaApi.topPharmacies(asOfDate, 10),
+        pharmaApi.discountLeaderboard(asOfDate, 10,period),
+        pharmaApi.topPharmacies(asOfDate, 10,period),
         pharmaApi.trend(asOfDate, pharmacyId, period),
       ]);
       setSummary(s); setMargin(m); setQuality(q); setChannels(ch);
@@ -254,7 +254,7 @@ const getTrendLabels = (period: string, length: number): string[] => {
 
           <View style={styles.kpiGrid}>
             <KpiTile label="Transactions" value={fmtInt(summary.transactions)} delta={{ value: `${fmtPct(summary.deltaTxns)}`, positive: true }} />
-            <KpiTile label="Check Avg." value={fmtKwd(summary.basketSizeKwd)} delta={{ value: `${fmtPct(summary.deltaBasketSizeKwd, 1)}`, positive: true }} />
+            <KpiTile label="Check Avg." value={fmtKwdSmallVal(summary.basketSizeKwd)} delta={{ value: `${fmtPct(summary.deltaBasketSizeKwd, 1)}`, positive: true }} />
             <KpiTile
               label="Active stores"
               value={
@@ -726,7 +726,7 @@ const getTrendLabels = (period: string, length: number): string[] => {
           categories.map(c => (
             <View key={c.key} style={styles.payRow2}>
               <Text style={{ color: theme.colors.text0, flex: 1 }}>{c.label}</Text>
-              <Text style={{ width: 90, textAlign: 'left', color: theme.colors.text0, fontFamily: theme.fonts.numeric, fontWeight: '700' }}>{fmtKwdAsIs(c.kwd)}</Text>
+              <Text style={{ width: 130, textAlign: 'left', color: theme.colors.text0, fontFamily: theme.fonts.numeric, fontWeight: '700' }}>{fmtKwdAsIs(c.kwd)}</Text>
               <Chip label={fmtPct(c.pct, 0)} tone="teal" />
             </View>
           )) 
