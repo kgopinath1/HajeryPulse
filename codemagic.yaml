@@ -134,7 +134,11 @@ workflows:
       - name: Set up code signing
         script: |
           keychain initialize
-          echo $CM_CERTIFICATE | base64 --decode > /tmp/certificate.p12
+          printf '%s' "$CM_CERTIFICATE" | base64 --decode > /tmp/certificate.p12
+          echo "Decoded file size:"
+          ls -la /tmp/certificate.p12
+          echo "Verifying certificate contents:"
+          openssl pkcs12 -in /tmp/certificate.p12 -info -noout -passin pass:"$CM_CERTIFICATE_PASSWORD" -legacy
           keychain add-certificates \
             --certificate /tmp/certificate.p12 \
             --certificate-password "$CM_CERTIFICATE_PASSWORD"
