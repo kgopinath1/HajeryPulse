@@ -3,12 +3,10 @@
     "C:\\Project\\HajeryPulse\\mobile\\node_modules\\@react-native-async-storage\\async-storage\\android\\build\\generated\\source\\codegen\\jni\\CMakeLists.txt",
     "C:\\Project\\HajeryPulse\\mobile\\node_modules\\@react-native-community\\datetimepicker\\android\\build\\generated\\source\\codegen\\jni\\CMakeLists.txt",
     "C:\\Project\\HajeryPulse\\mobile\\node_modules\\react-native-gesture-handler\\android\\build\\generated\\source\\codegen\\jni\\CMakeLists.txt",
-    "C:\\Project\\HajeryPulse\\mobile\\node_modules\\react-native-reanimated\\android\\build\\generated\\source\\codegen\\jni\\CMakeLists.txt",
     "C:\\Project\\HajeryPulse\\mobile\\node_modules\\react-native-safe-area-context\\android\\src\\main\\jni\\CMakeLists.txt",
     "C:\\Project\\HajeryPulse\\mobile\\node_modules\\react-native-screens\\android\\src\\main\\jni\\CMakeLists.txt",
     "C:\\Project\\HajeryPulse\\mobile\\node_modules\\react-native-svg\\android\\src\\main\\jni\\CMakeLists.txt",
     "C:\\Project\\HajeryPulse\\mobile\\node_modules\\react-native-vector-icons\\android\\build\\generated\\source\\codegen\\jni\\CMakeLists.txt",
-    "C:\\Project\\HajeryPulse\\mobile\\node_modules\\react-native-worklets\\android\\build\\generated\\source\\codegen\\jni\\CMakeLists.txt",
     "C:\\Project\\HajeryPulse\\mobile\\node_modules\\react-native\\ReactAndroid\\cmake-utils\\default-app-setup\\CMakeLists.txt"
   ],
   "cleanCommandsComponents": [
@@ -60,11 +58,6 @@
       "abi": "x86",
       "artifactName": "react_codegen_rngesturehandler_codegen"
     },
-    "react_codegen_rnreanimated::@8afabad14bfffa3f8b9a": {
-      "toolchain": "toolchain",
-      "abi": "x86",
-      "artifactName": "react_codegen_rnreanimated"
-    },
     "react_codegen_rnscreens::@25bcbd507e98d3a854ad": {
       "toolchain": "toolchain",
       "abi": "x86",
@@ -86,11 +79,6 @@
         "C:\\Users\\keerthanag\\.gradle\\caches\\9.3.1\\transforms\\2321ffcfab7439b6200de4724cf7ba76\\workspace\\transformed\\react-android-0.85.3-debug\\prefab\\modules\\jsi\\libs\\android.x86\\libjsi.so",
         "C:\\Users\\keerthanag\\.gradle\\caches\\9.3.1\\transforms\\3c01aea05d2737e987399f1309ae090e\\workspace\\transformed\\fbjni-0.7.0\\prefab\\modules\\fbjni\\libs\\android.x86\\libfbjni.so"
       ]
-    },
-    "react_codegen_rnworklets::@68f58d84d4754f193387": {
-      "toolchain": "toolchain",
-      "abi": "x86",
-      "artifactName": "react_codegen_rnworklets"
     },
     "react_codegen_safeareacontext::@7984cd80db47aa7b952a": {
       "toolchain": "toolchain",

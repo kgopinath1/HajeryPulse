@@ -47,12 +47,10 @@ if(NOT CMAKE_INSTALL_LOCAL_ONLY)
   include("C:/Project/HajeryPulse/mobile/android/app/.cxx/Debug/118265p5/x86_64/rnasyncstorage_autolinked_build/cmake_install.cmake")
   include("C:/Project/HajeryPulse/mobile/android/app/.cxx/Debug/118265p5/x86_64/RNDateTimePickerCGen_autolinked_build/cmake_install.cmake")
   include("C:/Project/HajeryPulse/mobile/android/app/.cxx/Debug/118265p5/x86_64/rngesturehandler_codegen_autolinked_build/cmake_install.cmake")
-  include("C:/Project/HajeryPulse/mobile/android/app/.cxx/Debug/118265p5/x86_64/rnreanimated_autolinked_build/cmake_install.cmake")
   include("C:/Project/HajeryPulse/mobile/android/app/.cxx/Debug/118265p5/x86_64/safeareacontext_autolinked_build/cmake_install.cmake")
   include("C:/Project/HajeryPulse/mobile/android/app/.cxx/Debug/118265p5/x86_64/rnscreens_autolinked_build/cmake_install.cmake")
   include("C:/Project/HajeryPulse/mobile/android/app/.cxx/Debug/118265p5/x86_64/rnsvg_autolinked_build/cmake_install.cmake")
   include("C:/Project/HajeryPulse/mobile/android/app/.cxx/Debug/118265p5/x86_64/RNVectorIconsSpec_autolinked_build/cmake_install.cmake")
-  include("C:/Project/HajeryPulse/mobile/android/app/.cxx/Debug/118265p5/x86_64/rnworklets_autolinked_build/cmake_install.cmake")
 
 endif()
 
