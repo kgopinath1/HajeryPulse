@@ -25,4 +25,5 @@ mobile/ios/build/
 .idea/
 
 # Zip files
-*.zip
+*.zipmobile/ios_backup_085/
+mobile/android_backup_085/

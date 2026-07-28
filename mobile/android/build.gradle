@@ -6,16 +6,10 @@ buildscript {
         targetSdkVersion = 36
         ndkVersion = "27.1.12297006"
         kotlinVersion = "2.1.20"
-		Msal_compileSdkVersion = 36
-        Msal_targetSdkVersion = 36
-        Msal_minSdkVersion = 24
     }
     repositories {
         google()
         mavenCentral()
-		 maven {
-            url 'https://pkgs.dev.azure.com/MicrosoftDeviceSDK/DuoSDK-Public/_packaging/Duo-SDK-Feed/maven/v1'
-        }
     }
     dependencies {
         classpath("com.android.tools.build:gradle")
@@ -25,3 +19,18 @@ buildscript {
 }
 
 apply plugin: "com.facebook.react.rootproject"
+
+allprojects {
+    repositories {
+        maven { url 'https://pkgs.dev.azure.com/MicrosoftDeviceSDK/DuoSDK-Public/_packaging/Duo-SDK-Feed/maven/v1' }
+    }
+}
+
+gradle.beforeProject { proj ->
+    proj.plugins.withId('com.android.library') {
+        proj.android {
+            compileSdkVersion 36
+            buildToolsVersion "36.0.0"
+        }
+    }
+}
