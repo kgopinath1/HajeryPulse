@@ -33,6 +33,7 @@ target 'HajeryPulse' do
     installer.pods_project.targets.each do |target|
       if target.name == 'fmt'
         target.build_configurations.each do |config|
+          config.build_settings['CLANG_CXX_LANGUAGE_STANDARD'] = 'c++17'
           existing_defs = config.build_settings['GCC_PREPROCESSOR_DEFINITIONS'] || ['$(inherited)']
           existing_defs = [existing_defs] if existing_defs.is_a?(String)
           existing_defs << 'FMT_CONSTEVAL='
