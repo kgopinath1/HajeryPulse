@@ -16,13 +16,11 @@ end
 
 target 'HajeryPulse' do
   config = use_native_modules!
-
   use_react_native!(
     :path => config[:reactNativePath],
     # An absolute path to your application root.
     :app_path => "#{Pod::Config.instance.installation_root}/.."
   )
-
   post_install do |installer|
     # https://github.com/facebook/react-native/blob/main/packages/react-native/scripts/react_native_pods.rb#L197-L202
     react_native_post_install(
@@ -31,5 +29,16 @@ target 'HajeryPulse' do
       :mac_catalyst_enabled => false,
       # :ccache_enabled => true
     )
+
+    installer.pods_project.targets.each do |target|
+      if target.name == 'fmt'
+        target.build_configurations.each do |config|
+          existing_defs = config.build_settings['GCC_PREPROCESSOR_DEFINITIONS'] || ['$(inherited)']
+          existing_defs = [existing_defs] if existing_defs.is_a?(String)
+          existing_defs << 'FMT_CONSTEVAL='
+          config.build_settings['GCC_PREPROCESSOR_DEFINITIONS'] = existing_defs
+        end
+      end
+    end
   end
 end

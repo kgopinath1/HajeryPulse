@@ -1,0 +1,75 @@
+[33mcommit b489689b0aa8dff2de9789e203693d8fef5733f4[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmain[m[33m)[m
+Author: Keerthana Gopinath <Keerthanag@ALHAJERY.COM.KW>
+Date:   Tue Jul 28 14:37:04 2026 +0300
+
+    Downgrade RN to 0.81.6/React 19.1.4, rename Android/iOS from template, fix fmt consteval issue for Xcode 26
+
+ api (2).zip                                        | Bin [31m0[m -> [32m10455457[m bytes
+ api.zip                                            | Bin [31m0[m -> [32m10071702[m bytes
+ mobile.zip                                         | Bin [31m0[m -> [32m4293861404[m bytes
+ .../.gradle/8.6/checksums/checksums.lock           | Bin [31m17[m -> [32m0[m bytes
+ .../.gradle/8.6/fileChanges/last-build.bin         | Bin [31m1[m -> [32m0[m bytes
+ .../.gradle/8.6/fileHashes/fileHashes.lock         | Bin [31m17[m -> [32m0[m bytes
+ mobile/android - Copy/.gradle/8.6/gc.properties    |   0
+ mobile/android - Copy/.gradle/vcs-1/gc.properties  |   0
+ mobile/android - Copy/app/build.gradle             | 118 [31m----------[m
+ mobile/android - Copy/app/debug.keystore           | Bin [31m2257[m -> [32m0[m bytes
+ mobile/android - Copy/app/proguard-rules.pro       |  10 [31m-[m
+ .../app/src/debug/AndroidManifest.xml              |   9 [31m-[m
+ .../app/src/main/AndroidManifest.xml               |  25 [31m---[m
+ .../app/src/main/java/com/tempapp/MainActivity.kt  |  22 [31m--[m
+ .../src/main/java/com/tempapp/MainApplication.kt   |  43 [31m----[m
+ .../main/res/drawable/rn_edit_text_material.xml    |  37 [31m---[m
+ .../app/src/main/res/mipmap-hdpi/ic_launcher.png   | Bin [31m3056[m -> [32m0[m bytes
+ .../src/main/res/mipmap-hdpi/ic_launcher_round.png | Bin [31m5024[m -> [32m0[m bytes
+ .../app/src/main/res/mipmap-mdpi/ic_launcher.png   | Bin [31m2096[m -> [32m0[m bytes
+ .../src/main/res/mipmap-mdpi/ic_launcher_round.png | Bin [31m2858[m -> [32m0[m bytes
+ .../app/src/main/res/mipmap-xhdpi/ic_launcher.png  | Bin [31m4569[m -> [32m0[m bytes
+ .../main/res/mipmap-xhdpi/ic_launcher_round.png    | Bin [31m7098[m -> [32m0[m bytes
+ .../app/src/main/res/mipmap-xxhdpi/ic_launcher.png | Bin [31m6464[m -> [32m0[m bytes
+ .../main/res/mipmap-xxhdpi/ic_launcher_round.png   | Bin [31m10676[m -> [32m0[m bytes
+ .../src/main/res/mipmap-xxxhdpi/ic_launcher.png    | Bin [31m9250[m -> [32m0[m bytes
+ .../main/res/mipmap-xxxhdpi/ic_launcher_round.png  | Bin [31m15523[m -> [32m0[m bytes
+ .../app/src/main/res/values/strings.xml            |   3 [31m-[m
+ .../app/src/main/res/values/styles.xml             |   9 [31m-[m
+ mobile/android - Copy/build.gradle                 |  21 [31m--[m
+ mobile/android - Copy/gradle.properties            |  41 [31m----[m
+ .../gradle/wrapper/gradle-wrapper.jar              | Bin [31m63721[m -> [32m0[m bytes
+ .../gradle/wrapper/gradle-wrapper.properties       |   7 [31m-[m
+ mobile/android - Copy/gradlew                      | 249 [31m---------------------[m
+ mobile/android - Copy/gradlew.bat                  |  92 [31m--------[m
+ mobile/android - Copy/settings.gradle              |   4 [31m-[m
+ .../.gradle/8.6/checksums/checksums.lock           | Bin [31m17[m -> [32m0[m bytes
+ .../.gradle/8.6/fileChanges/last-build.bin         | Bin [31m1[m -> [32m0[m bytes
+ .../.gradle/8.6/fileHashes/fileHashes.lock         | Bin [31m17[m -> [32m0[m bytes
+ mobile/android_bkp/.gradle/8.6/gc.properties       |   0
+ mobile/android_bkp/.gradle/vcs-1/gc.properties     |   0
+ mobile/android_bkp/app/build.gradle                | 118 [31m----------[m
+ mobile/android_bkp/app/debug.keystore              | Bin [31m2257[m -> [32m0[m bytes
+ mobile/android_bkp/app/proguard-rules.pro          |  10 [31m-[m
+ .../android_bkp/app/src/debug/AndroidManifest.xml  |   9 [31m-[m
+ .../android_bkp/app/src/main/AndroidManifest.xml   |  25 [31m---[m
+ .../app/src/main/java/com/tempapp/MainActivity.kt  |  22 [31m--[m
+ .../src/main/java/com/tempapp/MainApplication.kt   |  43 [31m----[m
+ .../main/res/drawable/rn_edit_text_material.xml    |  37 [31m---[m
+ .../app/src/main/res/mipmap-hdpi/ic_launcher.png   | Bin [31m3056[m -> [32m0[m bytes
+ .../src/main/res/mipmap-hdpi/ic_launcher_round.png | Bin [31m5024[m -> [32m0[m bytes
+ .../app/src/main/res/mipmap-mdpi/ic_launcher.png   | Bin [31m2096[m -> [32m0[m bytes
+ .../src/main/res/mipmap-mdpi/ic_launcher_round.png | Bin [31m2858[m -> [32m0[m bytes
+ .../app/src/main/res/mipmap-xhdpi/ic_launcher.png  | Bin [31m4569[m -> [32m0[m bytes
+ .../main/res/mipmap-xhdpi/ic_launcher_round.png    | Bin [31m7098[m -> [32m0[m bytes
+ .../app/src/main/res/mipmap-xxhdpi/ic_launcher.png | Bin [31m6464[m -> [32m0[m bytes
+ .../main/res/mipmap-xxhdpi/ic_launcher_round.png   | Bin [31m10676[m -> [32m0[m bytes
+ .../src/main/res/mipmap-xxxhdpi/ic_launcher.png    | Bin [31m9250[m -> [32m0[m bytes
+ .../main/res/mipmap-xxxhdpi/ic_launcher_round.png  | Bin [31m15523[m -> [32m0[m bytes
+ .../app/src/main/res/values/strings.xml            |   3 [31m-[m
+ .../android_bkp/app/src/main/res/values/styles.xml |   9 [31m-[m
+ mobile/android_bkp/build.gradle                    |  21 [31m--[m
+ mobile/android_bkp/gradle.properties               |  41 [31m----[m
+ .../android_bkp/gradle/wrapper/gradle-wrapper.jar  | Bin [31m63721[m -> [32m0[m bytes
+ .../gradle/wrapper/gradle-wrapper.properties       |   7 [31m-[m
+ mobile/android_bkp/gradlew                         | 249 [31m---------------------[m
+ mobile/android_bkp/gradlew.bat                     |  92 [31m--------[m
+ mobile/android_bkp/settings.gradle                 |   4 [31m-[m
+ mobile/ios/Podfile                                 |  15 [32m+[m[31m-[m
+ 68 files changed, 12 insertions(+), 1383 deletions(-)
