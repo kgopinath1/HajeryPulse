@@ -27,7 +27,7 @@ const API_SCOPE = 'api://b6487636-354c-483e-94a4-e408271e36b2/HajeryPulse';
 // from the debug keystore signature hash.
 const REDIRECT_URI = Platform.select({
   android: 'msauth://com.hajerypulse/Xo8WBi6jzSxKDVR4drqm84yr9iU%3D',
-  ios: 'msauth://com.hajerypulse/Xo8WBi6jzSxKDVR4drqm84yr9iU%3D', // TODO: fill in once iOS bundle ID + redirect URI are set up in Azure
+  ios: 'msauth.com.hajerypulse://auth', // TODO: fill in once iOS bundle ID + redirect URI are set up in Azure
 });
 
 const msalConfig: MSALConfiguration = {

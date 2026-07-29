@@ -11,6 +11,7 @@
  *   user, isLoading, signIn(), signOut(), reauthenticate()
  */
 import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
+import { Alert } from 'react-native';
 import { getMe, signOut as signOutOnServer } from '@api/auth';
 import { setAccessToken, clearAccessToken } from './tokens';
 import { signInWithEntraId, acquireTokenSilently, signOutEntraId, hasCachedAccount } from './entraId';
@@ -34,35 +35,41 @@ export function AuthProvider({ children }: { children: React.ReactNode }): React
   // Boot: try to restore session
   useEffect(() => {
     (async () => {
-      const cached = await hasCachedAccount();
-      if (!cached) {
-        setIsLoading(false);
-        return;
-      }
-
-      const ok = await requireBiometric('Unlock Hajery Pulse');
-      if (!ok) {
-        setIsLoading(false);
-        return;
-      }
-
-      const session = await acquireTokenSilently();
-      if (!session) {
-        setIsLoading(false);
-        return;
-      }
-
-      setAccessToken(session.accessToken, session.expiresOn);
       try {
-        const me = await getMe();
-        setUser(me);
-      } catch {
-        // MSAL had a valid cached session but the API rejected/errored —
-        // treat as signed out rather than showing a broken authenticated state.
-        clearAccessToken();
-        setUser(null);
+        const cached = await hasCachedAccount();
+        if (!cached) {
+          return;
+        }
+
+        const ok = await requireBiometric('Unlock Hajery Pulse');
+        if (!ok) {
+          return;
+        }
+
+        const session = await acquireTokenSilently();
+        if (!session) {
+          return;
+        }
+
+        setAccessToken(session.accessToken, session.expiresOn);
+        try {
+          const me = await getMe();
+          setUser(me);
+        } catch {
+          // MSAL had a valid cached session but the API rejected/errored —
+          // treat as signed out rather than showing a broken authenticated state.
+          clearAccessToken();
+          setUser(null);
+        }
+      } catch (err) {
+        // Without this, a thrown error (e.g. MSAL native init failing) would
+        // leave isLoading stuck true forever — infinite spinner, no login
+        // screen, no crash report. Surface it directly since a device build
+        // has no attached console to see it in otherwise.
+        Alert.alert('Startup error', String(err));
+      } finally {
+        setIsLoading(false);
       }
-      setIsLoading(false);
     })();
   }, []);
 
