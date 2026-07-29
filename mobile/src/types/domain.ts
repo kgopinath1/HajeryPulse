@@ -27,7 +27,8 @@ export interface WTSummary {
     activeTenders: number;
     avgTenderValueKwd: number;
     avgTenderValuePct: number;
-  
+    avgOrderValueKwd: number;
+    avgOrderValuePct: number;
   };
   spark: number[];
   sparkLY: number[];
@@ -42,6 +43,9 @@ export interface MarginAnalysis {
   grossMarginKwd: number;
   trend12mo: number[];
   trend12moLY: number[];
+  salesYoyPct: number;
+  cogsYoyPct: number;
+  grossMarginYoyPct: number;
 }
 
 export interface SalesQuality {
@@ -56,7 +60,10 @@ export interface SalesQuality {
   returnsPctLY: number;
   growthType: string;
   netPctQoQ: number;
-  
+  netPctDelta: number;
+  netPctPp: number;
+  returnsPctPp: number;
+  returnsPctDelta: number;
 }
 
 export interface OrgNode {
@@ -81,6 +88,7 @@ export interface OrgChild {
 export interface TopBrand {
   rank: number;
   brand: string;
+  brandCode: string;
   segment: string;
   amountKwd: number;
   yoyPct: number;
@@ -91,7 +99,7 @@ export interface TopCustomer {
   rank: number;
   customer: string;
   type: string;
-  ordersThisWeek: number;
+  ordersThisPeriod: number;
   amountKwd: number;
   yoyPct: number;
   growthType: string;
@@ -179,6 +187,7 @@ export interface FBBrand {
   color: string;
   deliveryKwd: number;
   outletCount: number;
+  growthPct: number;
 }
 
 export interface FBOutlet {

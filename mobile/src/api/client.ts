@@ -11,10 +11,13 @@ import axios, { AxiosError, AxiosInstance, InternalAxiosRequestConfig } from 'ax
 import { getStoredAccessToken, setAccessToken } from '@auth/tokens';
 import { acquireTokenSilently } from '@auth/entraId';
 
+// Dev machine's LAN IP — device and dev machine must be on the same Wi-Fi.
+const LAN_IP = '192.168.10.57';
+
 // In production, point at the data-center API URL or use env-driven config.
 const BASE_URL = __DEV__
-  ? 'http://10.0.2.2:50758/api/v1'      // Android emulator → host loopback
-  : 'https://api.hajerypulse.internal/api/v1';
+  ? `https://${LAN_IP}:50758/api/v1`
+  : 'https://${LAN_IP}:50758/api/v1';
 
 
 const SPEND_API = __DEV__

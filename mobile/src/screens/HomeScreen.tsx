@@ -195,7 +195,7 @@ const pharmacyId = 'all';
             data={fb}
             loading={loading}
             primaryColor={theme.colors.pink}
-            // @ts-expect-error — TODO: use your actual F&B route/tab name
+            
             onPress={() => navigation.navigate('FB')}
           />
 <SectionTitle title="Pharmacy" />
@@ -205,7 +205,6 @@ const pharmacyId = 'all';
             data={pharmacy}
             loading={loading}
             primaryColor={theme.colors.teal}
-            // @ts-expect-error — TODO: use your actual Pharmacy route/tab name
             onPress={() => navigation.navigate('Pharmacies')}
           />
         </View>

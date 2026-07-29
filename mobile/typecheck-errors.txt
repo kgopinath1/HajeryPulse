@@ -1,0 +1,91 @@
+
+> hajerypulse@1.0.0 typecheck
+> tsc --noEmit
+
+src/api/auth.ts(2,26): error TS6137: Cannot import type declaration files. Consider importing 'domain' instead of '@types/domain'.
+src/api/fb.ts(5,8): error TS6137: Cannot import type declaration files. Consider importing 'domain' instead of '@types/domain'.
+src/api/home.ts(2,33): error TS6137: Cannot import type declaration files. Consider importing 'domain' instead of '@types/domain'.
+src/api/home.ts(8,9): error TS2304: Cannot find name 'HomeQuickKpis'.
+src/api/inbox.ts(4,8): error TS6137: Cannot import type declaration files. Consider importing 'domain' instead of '@types/domain'.
+src/api/pharma.ts(6,8): error TS6137: Cannot import type declaration files. Consider importing 'domain' instead of '@types/domain'.
+src/api/sales.ts(5,8): error TS6137: Cannot import type declaration files. Consider importing 'domain' instead of '@types/domain'.
+src/auth/AuthContext.tsx(18,26): error TS6137: Cannot import type declaration files. Consider importing 'domain' instead of '@types/domain'.
+src/components/AsOnDateModal.tsx(19,21): error TS2345: Argument of type 'number | undefined' is not assignable to parameter of type 'number'.
+  Type 'undefined' is not assignable to type 'number'.
+src/components/AsOnDateModal.tsx(19,24): error TS18048: 'm' is possibly 'undefined'.
+src/components/InfoToolTip.tsx(4,22): error TS7016: Could not find a declaration file for module 'react-native-vector-icons/Ionicons'. 'C:/Project/HajeryPulse/mobile/node_modules/react-native-vector-icons/Ionicons.js' implicitly has an 'any' type.
+  Try `npm i --save-dev @types/react-native-vector-icons` if it exists or add a new declaration (.d.ts) file containing `declare module 'react-native-vector-icons/Ionicons';`
+src/components/MultiSparkline.tsx(92,19): error TS2532: Object is possibly 'undefined'.
+src/components/MultiSparkline.tsx(93,19): error TS2532: Object is possibly 'undefined'.
+src/components/MultiSparkline.tsx(102,19): error TS2532: Object is possibly 'undefined'.
+src/components/MultiSparkline.tsx(103,19): error TS2532: Object is possibly 'undefined'.
+src/components/MultiSparkline.tsx(117,19): error TS2532: Object is possibly 'undefined'.
+src/components/RevenueCard.tsx(12,22): error TS7016: Could not find a declaration file for module 'react-native-vector-icons/Ionicons'. 'C:/Project/HajeryPulse/mobile/node_modules/react-native-vector-icons/Ionicons.js' implicitly has an 'any' type.
+  Try `npm i --save-dev @types/react-native-vector-icons` if it exists or add a new declaration (.d.ts) file containing `declare module 'react-native-vector-icons/Ionicons';`
+src/navigation/AppTabs.tsx(4,22): error TS7016: Could not find a declaration file for module 'react-native-vector-icons/Ionicons'. 'C:/Project/HajeryPulse/mobile/node_modules/react-native-vector-icons/Ionicons.js' implicitly has an 'any' type.
+  Try `npm i --save-dev @types/react-native-vector-icons` if it exists or add a new declaration (.d.ts) file containing `declare module 'react-native-vector-icons/Ionicons';`
+src/navigation/AppTabs.tsx(24,7): error TS2769: No overload matches this call.
+  Overload 1 of 2, '(props: Omit<BottomTabNavigatorProps, "children" | "id" | "initialRouteName" | "layout" | "screenListeners" | "screenOptions" | "screenLayout" | "UNSTABLE_router" | "UNSTABLE_routeNamesChangeBehavior"> & DefaultRouterOptions<...> & { ...; } & ({ ...; } | { ...; }), context?: any): ReactElement<...> | ... 1 more ... | null', gave the following error.
+    Type '"Home"' is not assignable to type 'keyof AppTabsParamList | undefined'.
+  Overload 2 of 2, '(props: Omit<BottomTabNavigatorProps, "children" | "id" | "initialRouteName" | "layout" | "screenListeners" | "screenOptions" | "screenLayout" | "UNSTABLE_router" | "UNSTABLE_routeNamesChangeBehavior"> & DefaultRouterOptions<...> & { ...; } & ({ ...; } | { ...; })): ReactElement<...> | ... 1 more ... | null', gave the following error.
+    Type '"Home"' is not assignable to type 'keyof AppTabsParamList | undefined'.
+src/navigation/AppTabs.tsx(43,8): error TS2322: Type '"Home"' is not assignable to type 'keyof AppTabsParamList'.
+src/navigation/RootNavigator.tsx(53,15): error TS2322: Type '"Profile"' is not assignable to type 'keyof RootStackParamList'.
+src/screens/ApprovalDetailScreen.tsx(19,39): error TS6137: Cannot import type declaration files. Consider importing 'domain' instead of '@types/domain'.
+src/screens/FBScreen.tsx(34,8): error TS6137: Cannot import type declaration files. Consider importing 'domain' instead of '@types/domain'.
+src/screens/FBScreen.tsx(405,41): error TS2339: Property 'growthPct' does not exist on type 'FBBrand'.
+src/screens/FBScreen.tsx(406,33): error TS2339: Property 'growthPct' does not exist on type 'FBBrand'.
+src/screens/HomeScreen.tsx(24,22): error TS7016: Could not find a declaration file for module 'react-native-vector-icons/Ionicons'. 'C:/Project/HajeryPulse/mobile/node_modules/react-native-vector-icons/Ionicons.js' implicitly has an 'any' type.
+  Try `npm i --save-dev @types/react-native-vector-icons` if it exists or add a new declaration (.d.ts) file containing `declare module 'react-native-vector-icons/Ionicons';`
+src/screens/HomeScreen.tsx(42,8): error TS6137: Cannot import type declaration files. Consider importing 'domain' instead of '@types/domain'.
+src/screens/HomeScreen.tsx(80,36): error TS2532: Object is possibly 'undefined'.
+src/screens/HomeScreen.tsx(188,48): error TS2769: No overload matches this call.
+  Overload 1 of 2, '(...args: never): void', gave the following error.
+    Argument of type 'string' is not assignable to parameter of type 'never'.
+  Overload 2 of 2, '(options: never): void', gave the following error.
+    Argument of type 'string' is not assignable to parameter of type 'never'.
+src/screens/HomeScreen.tsx(199,48): error TS2769: No overload matches this call.
+  Overload 1 of 2, '(...args: never): void', gave the following error.
+    Argument of type 'string' is not assignable to parameter of type 'never'.
+  Overload 2 of 2, '(options: never): void', gave the following error.
+    Argument of type 'string' is not assignable to parameter of type 'never'.
+src/screens/HomeScreen.tsx(208,48): error TS2769: No overload matches this call.
+  Overload 1 of 2, '(...args: never): void', gave the following error.
+    Argument of type 'string' is not assignable to parameter of type 'never'.
+  Overload 2 of 2, '(options: never): void', gave the following error.
+    Argument of type 'string' is not assignable to parameter of type 'never'.
+src/screens/InboxScreen.tsx(19,56): error TS6137: Cannot import type declaration files. Consider importing 'domain' instead of '@types/domain'.
+src/screens/PharmaciesScreen.tsx(38,8): error TS6137: Cannot import type declaration files. Consider importing 'domain' instead of '@types/domain'.
+src/screens/PharmaciesScreen.tsx(83,63): error TS2345: Argument of type 'PharmaChannel' is not assignable to parameter of type 'SetStateAction<PharmaChannel[]>'.
+src/screens/PharmaciesScreen.tsx(266,53): error TS18047: 'rxMix' is possibly 'null'.
+src/screens/PharmaciesScreen.tsx(266,99): error TS18047: 'rxMix' is possibly 'null'.
+src/screens/PharmaciesScreen.tsx(302,9): error TS2322: Type 'Element' is not assignable to type 'string'.
+src/screens/PharmaciesScreen.tsx(316,9): error TS2322: Type 'Element' is not assignable to type 'string'.
+src/screens/PharmaciesScreen.tsx(356,27): error TS2339: Property 'marginTrend' does not exist on type '{ safe: { flex: number; backgroundColor: "#0a0d14"; }; center: { flex: number; backgroundColor: "#0a0d14"; alignItems: "center"; justifyContent: "center"; }; scroll: { padding: number; paddingBottom: number; }; ... 26 more ...; legendText: { ...; }; }'.
+src/screens/PharmaciesScreen.tsx(396,9): error TS2741: Property 'tone' is missing in type '{ label: string; }' but required in type '{ label: string; tone: ChipTone; }'.
+src/screens/PharmaciesScreen.tsx(915,3): error TS1117: An object literal cannot have multiple properties with the same name.
+src/screens/ProfileScreen.tsx(18,22): error TS7016: Could not find a declaration file for module 'react-native-vector-icons/Ionicons'. 'C:/Project/HajeryPulse/mobile/node_modules/react-native-vector-icons/Ionicons.js' implicitly has an 'any' type.
+  Try `npm i --save-dev @types/react-native-vector-icons` if it exists or add a new declaration (.d.ts) file containing `declare module 'react-native-vector-icons/Ionicons';`
+src/screens/ProfileScreen.tsx(42,36): error TS2532: Object is possibly 'undefined'.
+src/screens/WholesaleTenderScreen.tsx(24,22): error TS7016: Could not find a declaration file for module 'react-native-vector-icons/Ionicons'. 'C:/Project/HajeryPulse/mobile/node_modules/react-native-vector-icons/Ionicons.js' implicitly has an 'any' type.
+  Try `npm i --save-dev @types/react-native-vector-icons` if it exists or add a new declaration (.d.ts) file containing `declare module 'react-native-vector-icons/Ionicons';`
+src/screens/WholesaleTenderScreen.tsx(36,8): error TS6137: Cannot import type declaration files. Consider importing 'domain' instead of '@types/domain'.
+src/screens/WholesaleTenderScreen.tsx(236,70): error TS2551: Property 'avgOrderValueKwd' does not exist on type '{ newOrders: number; openOrderValueKwd: number; pipelineAmount: number; activeTenders: number; avgTenderValueKwd: number; avgTenderValuePct: number; }'. Did you mean 'avgTenderValueKwd'?
+src/screens/WholesaleTenderScreen.tsx(237,30): error TS2551: Property 'avgOrderValuePct' does not exist on type '{ newOrders: number; openOrderValueKwd: number; pipelineAmount: number; activeTenders: number; avgTenderValueKwd: number; avgTenderValuePct: number; }'. Did you mean 'avgTenderValuePct'?
+src/screens/WholesaleTenderScreen.tsx(238,30): error TS2551: Property 'avgOrderValuePct' does not exist on type '{ newOrders: number; openOrderValueKwd: number; pipelineAmount: number; activeTenders: number; avgTenderValueKwd: number; avgTenderValuePct: number; }'. Did you mean 'avgTenderValuePct'?
+src/screens/WholesaleTenderScreen.tsx(294,42): error TS2339: Property 'salesYoyPct' does not exist on type 'MarginAnalysis'.
+src/screens/WholesaleTenderScreen.tsx(294,117): error TS2339: Property 'salesYoyPct' does not exist on type 'MarginAnalysis'.
+src/screens/WholesaleTenderScreen.tsx(298,26): error TS2339: Property 'salesYoyPct' does not exist on type 'MarginAnalysis'.
+src/screens/WholesaleTenderScreen.tsx(304,42): error TS2339: Property 'cogsYoyPct' does not exist on type 'MarginAnalysis'.
+src/screens/WholesaleTenderScreen.tsx(304,116): error TS2339: Property 'cogsYoyPct' does not exist on type 'MarginAnalysis'.
+src/screens/WholesaleTenderScreen.tsx(308,26): error TS2339: Property 'cogsYoyPct' does not exist on type 'MarginAnalysis'.
+src/screens/WholesaleTenderScreen.tsx(314,42): error TS2339: Property 'grossMarginYoyPct' does not exist on type 'MarginAnalysis'.
+src/screens/WholesaleTenderScreen.tsx(314,123): error TS2339: Property 'grossMarginYoyPct' does not exist on type 'MarginAnalysis'.
+src/screens/WholesaleTenderScreen.tsx(318,26): error TS2339: Property 'grossMarginYoyPct' does not exist on type 'MarginAnalysis'.
+src/screens/WholesaleTenderScreen.tsx(417,36): error TS2551: Property 'returnsPctDelta' does not exist on type 'SalesQuality'. Did you mean 'returnsPct'?
+src/screens/WholesaleTenderScreen.tsx(418,23): error TS2551: Property 'returnsPctDelta' does not exist on type 'SalesQuality'. Did you mean 'returnsPct'?
+src/screens/WholesaleTenderScreen.tsx(505,16): error TS2339: Property 'brandCode' does not exist on type 'TopBrand'.
+src/screens/WholesaleTenderScreen.tsx(527,36): error TS2339: Property 'ordersThisPeriod' does not exist on type 'TopCustomer'.
+src/screens/WholesaleTenderScreen.tsx(602,35): error TS2339: Property 'bg2' does not exist on type '{ readonly bg0: "#0a0d14"; readonly bg1: "#0f1320"; readonly surface: "#141927"; readonly surfaceHi: "#1a2030"; readonly border: "rgba(255,255,255,0.06)"; readonly borderHi: "rgba(255,255,255,0.12)"; ... 12 more ...; readonly red: "#ff5c6c"; }'.
+src/screens/WholesaleTenderScreen.tsx(692,35): error TS2339: Property 'bg2' does not exist on type '{ readonly bg0: "#0a0d14"; readonly bg1: "#0f1320"; readonly surface: "#141927"; readonly surfaceHi: "#1a2030"; readonly border: "rgba(255,255,255,0.06)"; readonly borderHi: "rgba(255,255,255,0.12)"; ... 12 more ...; readonly red: "#ff5c6c"; }'.
+src/screens/WholesaleTenderScreen.tsx(726,35): error TS2339: Property 'bg2' does not exist on type '{ readonly bg0: "#0a0d14"; readonly bg1: "#0f1320"; readonly surface: "#141927"; readonly surfaceHi: "#1a2030"; readonly border: "rgba(255,255,255,0.06)"; readonly borderHi: "rgba(255,255,255,0.12)"; ... 12 more ...; readonly red: "#ff5c6c"; }'.

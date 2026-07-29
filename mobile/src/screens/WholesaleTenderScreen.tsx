@@ -410,7 +410,7 @@ const showNoData = !loading && !hasData;
 
     <View style={{ marginTop: 14, flexDirection: 'row', gap: 8 }}>
       <Chip
-        label={`Returns ${fmtPct(quality.returnsPct)} of gross`}
+        label={`Returns ${fmtPct(quality.returnsPct)} of Net`}
         tone={quality.returnsPct > 0 ? 'red' : 'green'}
       />
       <Chip
