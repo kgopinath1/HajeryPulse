@@ -16,8 +16,8 @@ const LAN_IP = '192.168.10.57';
 
 // In production, point at the data-center API URL or use env-driven config.
 const BASE_URL = __DEV__
-  ? `https://${LAN_IP}:50758/api/v1`
-  : 'https://${LAN_IP}:50758/api/v1';
+  ? `http://${LAN_IP}:50758/api/v1`
+  : `http://${LAN_IP}:50758/api/v1`;
 
 
 const SPEND_API = __DEV__
