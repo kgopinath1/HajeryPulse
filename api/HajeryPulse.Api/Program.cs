@@ -75,6 +75,7 @@ builder.Services.AddScoped<IFBService,      FBService>();
 builder.Services.AddScoped<IFinanceService, FinanceService>();
 builder.Services.AddScoped<IInboxService, InboxService>();
 builder.Services.AddScoped<IHomeService,    HomeService>();
+builder.Services.AddSingleton<IDeviceRegistryService, DeviceRegistryService>();
 
 // ---------- API + Swagger ----------
 builder.Services.AddControllers();
@@ -100,6 +101,7 @@ if (app.Environment.IsDevelopment())
 //app.UseHttpsRedirection();
 app.UseCors();
 app.UseAuthentication();
+app.UseMiddleware<DeviceControlMiddleware>();
 app.UseAuthorization();
 
 app.MapHealthChecks("/health");

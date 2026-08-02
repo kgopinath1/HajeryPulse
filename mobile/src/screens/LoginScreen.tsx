@@ -15,7 +15,6 @@ export function LoginScreen(): React.JSX.Element {
     try {
       await signIn();
     } catch (e: any) {
-     console.log('SIGN IN ERROR:', e); // TEMP — see the real error
       Alert.alert('Sign-in failed', e.message ?? 'Please try again.');
     } finally {
       setBusy(false);

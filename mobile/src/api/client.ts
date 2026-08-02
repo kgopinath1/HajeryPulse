@@ -8,8 +8,10 @@
  *  - Retry idempotent GETs once on 5xx
  */
 import axios, { AxiosError, AxiosInstance, InternalAxiosRequestConfig } from 'axios';
+import { Platform } from 'react-native';
 import { getStoredAccessToken, setAccessToken } from '@auth/tokens';
 import { acquireTokenSilently } from '@auth/entraId';
+import { getDeviceId } from '@auth/deviceId';
 
 // Dev machine's LAN IP — device and dev machine must be on the same Wi-Fi.
 const LAN_IP = '192.168.10.57';
@@ -17,7 +19,7 @@ const LAN_IP = '192.168.10.57';
 // In production, point at the data-center API URL or use env-driven config.
 const BASE_URL = __DEV__
   ? `http://${LAN_IP}:50758/api/v1`
-  : `http://${LAN_IP}:50758/api/v1`;
+  : `http://${LAN_IP}:50758/api/v1`;//TODO need to replace with release url https
 
 
 const SPEND_API = __DEV__
@@ -50,6 +52,8 @@ apiClient.interceptors.request.use(async (config: InternalAxiosRequestConfig) =>
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
+  config.headers['X-Device-Id'] = await getDeviceId();
+  config.headers['X-Device-Platform'] = Platform.OS;
   return config;
 });
 

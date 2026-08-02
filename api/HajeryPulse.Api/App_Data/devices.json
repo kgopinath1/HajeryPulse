@@ -1,0 +1,14 @@
+{
+  "5f4c1e4e1db28003": {
+    "deviceId": "5f4c1e4e1db28003",
+    "userId": "seUnTYStYAyA1RqT3calSnGueg6Lxf1nb28GQntPRzE",
+    "platform": "android",
+    "firstSeenUtc": "2026-07-30T12:11:23.7630383Z",
+    "lastSeenUtc": "2026-08-02T08:20:53.6972822Z",
+    "isApproved": true,
+    "approvedAtUtc": "2026-08-02T00:00:00Z",
+    "isBlacklisted": false,
+    "blacklistedAtUtc": null,
+    "blacklistReason": null
+  }
+}

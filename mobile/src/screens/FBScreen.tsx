@@ -67,16 +67,15 @@ export function FBScreen(): React.JSX.Element {
 
   // Bootstrap
   useEffect(() => {
-     console.log("Calling outlets with:", { asOfDate, scopeType, scopeId, period });
     Promise.all([
       fbApi.brands(asOfDate,  period),
       fbApi.outlets(asOfDate, scopeType, scopeId, period)
     ]).then(([b, o]) => {
       setBrands(b);
       setOutlets(o);
-    console.log("brands:", b);
-     console.log("outlets:", o);
-    }).catch((err) => console.error("Load failed:", err));
+    }).catch(() => {
+      // Swallowed — brands/outlets stay empty; screen renders around it.
+    });
   }, [asOfDate, scopeType, scopeId, period]);
 
 
@@ -103,8 +102,6 @@ export function FBScreen(): React.JSX.Element {
         current: tr.current ?? [],
         previous: tr.previous ?? [],
       });
-      console.log("TREND API RESPONSE:", tr);
-      console.log("API RESPONSE:", bs, ch);
     } finally {
       setLoading(false); setRefreshing(false);
     }
@@ -161,17 +158,6 @@ export function FBScreen(): React.JSX.Element {
   if (loading && !summary) {
     return <SafeAreaView style={styles.center}><ActivityIndicator color={theme.colors.gold} /></SafeAreaView>;
   }
-
-  console.log('hasData', hasData);
-  console.log('showNoData', showNoData);
-
-  console.log('summary', summary);
-  console.log('brandSummary', brandSummary.length);
-  console.log('aggrs', aggrs.length);
-  console.log('payments', payments.length);
-  console.log('delivery', delivery.length);
-  console.log('topOutlets', topOutlets.length);
-  console.log('channels', channels);
 
   const filterLabel =
     scopeType === 'brand'

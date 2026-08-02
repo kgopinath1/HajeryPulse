@@ -64,8 +64,6 @@ export function WholesaleTenderScreen(): React.JSX.Element {
       ]);
       setSummary(s); setMargin(m); setQuality(q);
       setOrg(o); setBrands(b); setCustomers(c);
-      console.log('=== SALES API RESPONSES ===', { s, m, q, o, b, c });
-      console.log(period)
     } finally {
       setLoading(false);
       setRefreshing(false);

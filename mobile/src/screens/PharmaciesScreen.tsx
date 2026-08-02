@@ -67,7 +67,6 @@ useEffect(() => {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      console.log('=== API CALL PARAMS ===', { asOfDate, pharmacyId, period });
       const [s, m, q, ch, pay, cats, rx, disc, top, tr] = await Promise.all([
         pharmaApi.summary(asOfDate, pharmacyId, period),
         pharmaApi.margin(asOfDate, pharmacyId, period),
@@ -87,9 +86,8 @@ useEffect(() => {
         current: tr?.current ?? [],
         previous: tr?.previous ?? [],
       });
-      console.log('=== API RESPONSES ===', { s, m, disc, top, cats, q, ch, pay, rx, tr });
-    } catch (err) {
-      console.error('=== API ERROR ===', err);
+    } catch {
+      // Swallowed — screen falls back to its stale/empty state; see showNoData.
     } finally {
       setLoading(false); setRefreshing(false);
     }

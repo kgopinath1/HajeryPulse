@@ -14,7 +14,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("HajeryPulse.Api")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+996e9b7c76367a79a6e5303085558f06302aeffd")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+0352789f7b8f7dabddf66d977e39dbc654766cd1")]
 [assembly: System.Reflection.AssemblyProductAttribute("HajeryPulse.Api")]
 [assembly: System.Reflection.AssemblyTitleAttribute("HajeryPulse.Api")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

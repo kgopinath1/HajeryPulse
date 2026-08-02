@@ -1,5 +1,5 @@
 import React from 'react';
-import { ActivityIndicator, View } from 'react-native';
+import { ActivityIndicator, Text, View } from 'react-native';
 import { NavigationContainer, DefaultTheme } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 
@@ -28,7 +28,17 @@ const navTheme = {
 };
 
 export function RootNavigator(): React.JSX.Element {
-  const { user, isLoading } = useAuth();
+  const { user, isLoading, blocked } = useAuth();
+
+  if (blocked) {
+    return (
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: theme.colors.bg0, padding: 32 }}>
+        <Text style={{ color: theme.colors.text0, fontSize: 16, textAlign: 'center' }}>
+          This app can't run on an emulator or simulator. Please use a physical device.
+        </Text>
+      </View>
+    );
+  }
 
   if (isLoading) {
     return (

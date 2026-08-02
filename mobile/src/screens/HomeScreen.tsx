@@ -125,13 +125,7 @@ const pharmacyId = 'all';
       pharmaApi.trend(asOfDate, pharmacyId,HOME_PERIOD),
     ]).then(([s, t]) => { if (!cancelled) setPharmacy(toLineData(s, t)); });
 
-    Promise.allSettled([wtP, fbP, phP]).then(results => {
-      results.forEach((r, i) => {
-        if (r.status === 'rejected') {
-          const line = ['WholesaleTenderScreen', 'F&FBScreen', 'PharmaciesScreen'][i];
-          console.error(`Failed to load ${line} revenue:`, r.reason);
-        }
-      });
+    Promise.allSettled([wtP, fbP, phP]).then(() => {
       if (!cancelled) setLoading(false);
     });
 

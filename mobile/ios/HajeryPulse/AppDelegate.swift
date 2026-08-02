@@ -1,4 +1,6 @@
 import UIKit
+import Darwin
+import Foundation
 import React
 import React_RCTAppDelegate
 import ReactAppDependencyProvider
@@ -14,14 +16,22 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     _ application: UIApplication,
     didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil
   ) -> Bool {
+    window = UIWindow(frame: UIScreen.main.bounds)
+
+#if !DEBUG
+    if let reason = AppDelegate.securityBlockReason() {
+      window?.rootViewController = AppDelegate.blockedViewController(message: reason)
+      window?.makeKeyAndVisible()
+      return true
+    }
+#endif
+
     let delegate = ReactNativeDelegate()
     let factory = RCTReactNativeFactory(delegate: delegate)
     delegate.dependencyProvider = RCTAppDependencyProvider()
 
     reactNativeDelegate = delegate
     reactNativeFactory = factory
-
-    window = UIWindow(frame: UIScreen.main.bounds)
 
     factory.startReactNative(
       withModuleName: "HajeryPulse",
@@ -30,6 +40,88 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     )
 
     return true
+  }
+
+  // MARK: - Runtime security gate (release builds only)
+  //
+  // Skipped entirely under #if !DEBUG so Xcode/LLDB and normal development
+  // are untouched. Both checks below are heuristic deterrents, not hard
+  // guarantees: a sufficiently determined attacker running Frida can hook
+  // either check to lie about its result. They raise the bar against casual
+  // reverse engineering and scripted abuse, not a targeted attacker.
+  private static func securityBlockReason() -> String? {
+    if isDebuggerAttached() {
+      return "This app can't run with a debugger attached."
+    }
+    if hasSuspiciousInjection() {
+      return "This app can't run in a modified or instrumented environment."
+    }
+    return nil
+  }
+
+  // MASTG-BEST-0074 — Anti-debugging.
+  // Detects (does not attempt to prevent) an attached debugger via the
+  // public sysctl API, checking the P_TRACED flag on this process.
+  // Deliberately not ptrace(PT_DENY_ATTACH) — that actively blocks
+  // attachment but uses a semi-private syscall pattern that has drawn App
+  // Store review scrutiny for some apps; this stays unambiguously safe.
+  private static func isDebuggerAttached() -> Bool {
+    var info = kinfo_proc()
+    var size = MemoryLayout<kinfo_proc>.stride
+    var mib: [Int32] = [CTL_KERN, KERN_PROC, KERN_PROC_PID, getpid()]
+
+    let result = sysctl(&mib, UInt32(mib.count), &info, &size, nil, 0)
+    guard result == 0 else { return false }
+
+    return (info.kp_proc.p_flag & P_TRACED) != 0
+  }
+
+  // MASTG-BEST-0067 — Source code integrity checks.
+  // Frida and Cydia Substrate attach by injecting a dylib into the process,
+  // most commonly via the DYLD_INSERT_LIBRARIES environment variable. This
+  // checks for that variable, and separately scans the list of libraries
+  // actually loaded into this process for known instrumentation tooling —
+  // catching injection performed through other means too.
+  private static func hasSuspiciousInjection() -> Bool {
+    if ProcessInfo.processInfo.environment["DYLD_INSERT_LIBRARIES"] != nil {
+      return true
+    }
+
+    let suspiciousNames = [
+      "fridagadget", "frida", "cynject", "libcycript",
+      "substrateloader", "substrateinserter", "cydiasubstrate",
+    ]
+    let imageCount = _dyld_image_count()
+    for i in 0..<imageCount {
+      guard let namePtr = _dyld_get_image_name(i) else { continue }
+      let name = String(cString: namePtr).lowercased()
+      if suspiciousNames.contains(where: { name.contains($0) }) {
+        return true
+      }
+    }
+    return false
+  }
+
+  private static func blockedViewController(message: String) -> UIViewController {
+    let vc = UIViewController()
+    vc.view.backgroundColor = UIColor(red: 10/255, green: 13/255, blue: 20/255, alpha: 1)
+
+    let label = UILabel()
+    label.text = message
+    label.textColor = .white
+    label.textAlignment = .center
+    label.numberOfLines = 0
+    label.translatesAutoresizingMaskIntoConstraints = false
+
+    vc.view.addSubview(label)
+    NSLayoutConstraint.activate([
+      label.centerXAnchor.constraint(equalTo: vc.view.centerXAnchor),
+      label.centerYAnchor.constraint(equalTo: vc.view.centerYAnchor),
+      label.leadingAnchor.constraint(equalTo: vc.view.leadingAnchor, constant: 32),
+      label.trailingAnchor.constraint(equalTo: vc.view.trailingAnchor, constant: -32),
+    ])
+
+    return vc
   }
 }
 

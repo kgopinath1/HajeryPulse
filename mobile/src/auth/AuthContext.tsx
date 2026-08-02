@@ -16,11 +16,13 @@ import { getMe, signOut as signOutOnServer } from '@api/auth';
 import { setAccessToken, clearAccessToken } from './tokens';
 import { signInWithEntraId, acquireTokenSilently, signOutEntraId, hasCachedAccount } from './entraId';
 import { requireBiometric } from './biometric';
+import { isBlockedEmulator } from './emulatorGuard';
 import { AuthUser } from '@types/domain';
 
 interface AuthContextValue {
   user: AuthUser | null;
   isLoading: boolean;
+  blocked: boolean;
   signIn: () => Promise<void>;
   signOut: () => Promise<void>;
   reauthenticate: () => Promise<boolean>;
@@ -31,11 +33,17 @@ const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 export function AuthProvider({ children }: { children: React.ReactNode }): React.JSX.Element {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [blocked, setBlocked] = useState<boolean>(false);
 
   // Boot: try to restore session
   useEffect(() => {
     (async () => {
       try {
+        if (await isBlockedEmulator()) {
+          setBlocked(true);
+          return;
+        }
+
         const cached = await hasCachedAccount();
         if (!cached) {
           return;
@@ -101,7 +109,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }): React
   }, []);
 
   return (
-    <AuthContext.Provider value={{ user, isLoading, signIn, signOut, reauthenticate }}>
+    <AuthContext.Provider value={{ user, isLoading, blocked, signIn, signOut, reauthenticate }}>
       {children}
     </AuthContext.Provider>
   );
