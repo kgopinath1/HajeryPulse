@@ -17,15 +17,17 @@ node_modules/
 mobile/android/.gradle/
 mobile/android/build/
 mobile/android/app/build/
+**/.cxx/
 
 # iOS build
 mobile/ios/build/
 
 # IDE files
 .idea/
+.vscode/
 
 # Zip files
-*.zipmobile/ios_backup_085/
-mobile/android_backup_085/
-"" 
-"*.zip" 
+*.zip
+
+# Runtime data — device registry is generated/mutated at runtime, not source
+api/HajeryPulse.Api/App_Data/

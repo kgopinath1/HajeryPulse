@@ -16,7 +16,7 @@ import { getMe, signOut as signOutOnServer } from '@api/auth';
 import { setAccessToken, clearAccessToken } from './tokens';
 import { signInWithEntraId, acquireTokenSilently, signOutEntraId, hasCachedAccount } from './entraId';
 import { requireBiometric } from './biometric';
-import { isBlockedEmulator } from './emulatorGuard';
+import { isRuntimeCompromised } from './emulatorGuard';
 import { AuthUser } from '@types/domain';
 
 interface AuthContextValue {
@@ -39,7 +39,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }): React
   useEffect(() => {
     (async () => {
       try {
-        if (await isBlockedEmulator()) {
+        if (await isRuntimeCompromised()) {
           setBlocked(true);
           return;
         }
@@ -79,6 +79,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }): React
         setIsLoading(false);
       }
     })();
+  }, []);
+
+  // MASTG-BEST-0047 — continuous checking. The boot check above only ever
+  // runs once at launch; this catches an emulator swap or Frida/Xposed
+  // attaching mid-session instead of only at startup. Sticky once tripped —
+  // never resets blocked back to false on its own.
+  useEffect(() => {
+    const interval = setInterval(async () => {
+      if (await isRuntimeCompromised()) {
+        setBlocked(true);
+      }
+    }, 20_000);
+    return () => clearInterval(interval);
   }, []);
 
   const signIn = useCallback(async () => {

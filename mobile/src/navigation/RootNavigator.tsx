@@ -34,7 +34,7 @@ export function RootNavigator(): React.JSX.Element {
     return (
       <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: theme.colors.bg0, padding: 32 }}>
         <Text style={{ color: theme.colors.text0, fontSize: 16, textAlign: 'center' }}>
-          This app can't run on an emulator or simulator. Please use a physical device.
+          This app can't run in this environment. Please use a standard, physical device.
         </Text>
       </View>
     );

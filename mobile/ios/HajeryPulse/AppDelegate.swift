@@ -56,6 +56,9 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     if hasSuspiciousInjection() {
       return "This app can't run in a modified or instrumented environment."
     }
+    if isJailbroken() {
+      return "This app can't run on a jailbroken device."
+    }
     return nil
   }
 
@@ -100,6 +103,42 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
       }
     }
     return false
+  }
+
+  // MASTG-BEST-0048 — Hardening against reverse engineering tools (jailbreak
+  // detection). A device can be jailbroken without a debugger or Frida
+  // currently attached, so this catches a case the two checks above don't.
+  // Two signals, both using only public FileManager APIs: known package
+  // manager/tweak-injection artifacts left on a jailbroken filesystem, and
+  // whether the sandbox can actually be escaped by writing outside the
+  // app's own container (fails on a normal device, can succeed on one with
+  // sandbox restrictions relaxed).
+  private static func isJailbroken() -> Bool {
+    let suspiciousPaths = [
+      "/Applications/Cydia.app",
+      "/Applications/Sileo.app",
+      "/Applications/Zebra.app",
+      "/Library/MobileSubstrate/MobileSubstrate.dylib",
+      "/Library/MobileSubstrate/DynamicLibraries",
+      "/bin/bash",
+      "/usr/sbin/sshd",
+      "/etc/apt",
+      "/private/var/lib/apt",
+    ]
+    for path in suspiciousPaths {
+      if FileManager.default.fileExists(atPath: path) {
+        return true
+      }
+    }
+
+    let testPath = "/private/\(UUID().uuidString).txt"
+    do {
+      try "jailbreak test".write(toFile: testPath, atomically: true, encoding: .utf8)
+      try? FileManager.default.removeItem(atPath: testPath)
+      return true
+    } catch {
+      return false
+    }
   }
 
   private static func blockedViewController(message: String) -> UIViewController {

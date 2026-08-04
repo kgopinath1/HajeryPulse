@@ -16,10 +16,12 @@ import { getDeviceId } from '@auth/deviceId';
 // Dev machine's LAN IP — device and dev machine must be on the same Wi-Fi.
 const LAN_IP = '192.168.10.57';
 
-// In production, point at the data-center API URL or use env-driven config.
+// TEMP: both branches on Kestrel:50758 until port 5000 is opened through the
+// firewall for the IIS deployment (network team ticket pending). Switch the
+// release branch back to `${LAN_IP}:5000` once that's confirmed open.
 const BASE_URL = __DEV__
-  ? `http://${LAN_IP}:50758/api/v1`
-  : `http://${LAN_IP}:50758/api/v1`;//TODO need to replace with release url https
+  ? `http://${LAN_IP}:5000/api/v1`
+  : `http://${LAN_IP}:5000/api/v1`;
 
 
 const SPEND_API = __DEV__
