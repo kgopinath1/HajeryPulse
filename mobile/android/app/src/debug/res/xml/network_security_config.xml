@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Debug-only network security config. Trusts user-installed CAs (in addition
+  to the system trust store) so the app can talk to the ASP.NET Core dev
+  HTTPS certificate on a physical Android device during local development,
+  once that cert has been manually installed on the device as a user CA.
+
+  This file lives under src/debug/ and is merged only into debug builds —
+  release builds use the default Android trust behavior (system CAs only).
+-->
+<network-security-config>
+    <base-config cleartextTrafficPermitted="true">
+        <trust-anchors>
+            <certificates src="system" />
+            <certificates src="user" />
+        </trust-anchors>
+    </base-config>
+</network-security-config>

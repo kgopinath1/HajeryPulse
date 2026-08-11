@@ -13,19 +13,17 @@ import { getStoredAccessToken, setAccessToken } from '@auth/tokens';
 import { acquireTokenSilently } from '@auth/entraId';
 import { getDeviceId } from '@auth/deviceId';
 
-// Dev machine's LAN IP — device and dev machine must be on the same Wi-Fi.
-const LAN_IP = '192.168.10.57';
+// Dev machine's LAN IP — only needed for Android, since a physical Android
+// device can't resolve "localhost" to the dev machine the way iOS Simulator
+// can (Simulator shares the Mac's network stack; a real device doesn't).
+// Device and dev machine must be on the same Wi-Fi.
+const DEV_LAN_IP = '192.168.10.57';
 
-
-/* const BASE_URL = __DEV__
-  //? `http://${LAN_IP}:5000/api/v1`
-  ? `http://10.20.20.105:4439/api/v1`
-  : `http://10.20.20.105:4439/api/v1`;  */
-
-  const BASE_URL = __DEV__
-  //? `http://${LAN_IP}:5000/api/v1`
-  ? `http://${LAN_IP}:50758/api/v1`
-  : `http://${LAN_IP}:50758/api/v1`;
+const BASE_URL = __DEV__
+  ? Platform.OS === 'ios'
+    ? `https://localhost:50757/api/v1`
+    : `https://${DEV_LAN_IP}:50757/api/v1`
+  : `https://10.20.20.105:4439/api/v1`;
 
 
 const SPEND_API = __DEV__

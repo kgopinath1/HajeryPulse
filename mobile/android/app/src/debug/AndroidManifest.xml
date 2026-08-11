@@ -1,0 +1,10 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!--
+      Debug-only manifest fragment, merged only into debug builds by Gradle.
+      Adds the network security config that trusts a user-installed dev CA
+      (see src/debug/res/xml/network_security_config.xml) — release builds
+      are untouched, since src/main/AndroidManifest.xml has no such override.
+    -->
+    <application android:networkSecurityConfig="@xml/network_security_config">
+    </application>
+</manifest>
