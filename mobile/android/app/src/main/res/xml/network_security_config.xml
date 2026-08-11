@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Explicit, reviewable TLS-enforcement policy for release builds — blocks
+  cleartext (plain HTTP) traffic app-wide. Functionally this already matched
+  what android:usesCleartextTraffic="${usesCleartextTraffic}" resolved to for
+  release (false), but that was an implicit build-variant side effect rather
+  than an auditable policy file. See src/debug/res/xml/network_security_config.xml
+  for the separate debug-only override (which also trusts a local dev cert).
+-->
+<network-security-config>
+    <base-config cleartextTrafficPermitted="false">
+        <trust-anchors>
+            <certificates src="system" />
+        </trust-anchors>
+    </base-config>
+</network-security-config>
