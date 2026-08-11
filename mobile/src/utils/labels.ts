@@ -51,6 +51,29 @@ export const getPeriodLabel = (period: TrendPeriod | string): string => {
 };
 
 /**
+ * Plain-language caption for what a growth/delta value is actually being
+ * compared against, matching getPeriodLabel's mapping (DoD/WoW/MoM/YoY) —
+ * for use under a KPI tile instead of a fixed "vs last year" string that's
+ * only accurate for the ytd period.
+ *
+ * @param period - the currently selected period tab
+ */
+export const getGrowthCaption = (period: TrendPeriod | string): string => {
+  switch (period) {
+    case 'day':
+      return 'vs yesterday';
+    case 'week':
+      return 'vs last week';
+    case 'month':
+      return 'vs last month';
+    case 'ytd':
+      return 'vs last year';
+    default:
+      return 'vs previous period';
+  }
+};
+
+/**
  * Human-readable label for the Business Type (Wholesale/Tender) filter,
  * shown as a section subtitle (e.g. "Margin Analysis · Wholesale only").
  *

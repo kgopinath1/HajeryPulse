@@ -2,7 +2,7 @@ import { get } from './client';
 import {
   BTFilter, WTSummary, MarginAnalysis, SalesQuality,
   OrgNode, TopBrand, TopCustomer,
-} from '@types/domain';
+} from '@domain';
 
 export const salesApi = {
   summary: (asOfDate: string, bt: BTFilter, period: 'day' | 'week' | 'month' | 'ytd') =>

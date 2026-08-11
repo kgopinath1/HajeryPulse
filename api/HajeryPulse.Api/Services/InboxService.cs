@@ -17,19 +17,11 @@ public interface IInboxService
 public sealed class InboxService : IInboxService
 {
     private readonly IInboxRepository _repo;
-    //private readonly ICacheService _cache;
     private readonly ILogger<InboxService> _logger;
 
-    //public InboxService(IInboxRepository repo, ICacheService cache, ILogger<InboxService> logger)
-    //{
-    //    _repo   = repo;
-    //    _cache  = cache;
-    //    _logger = logger;
-    //}
     public InboxService(IInboxRepository repo, ILogger<InboxService> logger)
     {
         _repo = repo;
-      //  _cache = cache;
         _logger = logger;
     }
 

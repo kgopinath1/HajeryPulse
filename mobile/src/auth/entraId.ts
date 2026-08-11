@@ -22,7 +22,7 @@ const CLIENT_ID = 'b6487636-354c-483e-94a4-e408271e36b2';
 // Must match the scope exposed under "Expose an API" in Azure.
 const API_SCOPE = 'api://b6487636-354c-483e-94a4-e408271e36b2/HajeryPulse';
 
-// TODO: iOS redirect URI still needed — depends on iOS bundle identifier,
+
 // format is typically msauth.<bundle-id>://auth. Android value confirmed
 // from the debug keystore signature hash.
 const REDIRECT_URI = Platform.select({
@@ -70,6 +70,26 @@ function toSession(result: MSALResult): EntraIdSession {
 }
 
 /**
+ * Thrown by signInWithEntraId with a safe, pre-written message only — never
+ * propagates raw MSAL/native error text, which can include internal error
+ * codes (e.g. Android's bare "userCancel") or other implementation details
+ * that shouldn't be shown to the user.
+ */
+export class EntraSignInError extends Error {
+  constructor(public readonly reason: 'cancelled' | 'failed', message: string) {
+    super(message);
+    this.name = 'EntraSignInError';
+  }
+}
+
+/** Best-effort, cross-platform detection of a user-initiated cancel. */
+function isUserCancelled(err: unknown): boolean {
+  const code = (err as { code?: unknown })?.code ?? '';
+  const message = (err as { message?: unknown })?.message ?? '';
+  return `${code} ${message}`.toLowerCase().includes('cancel');
+}
+
+/**
  * Interactive sign-in — opens the system browser to Entra ID's hosted login
  * page (which handles username/password, MFA, or federated on-prem Windows
  * auth automatically depending on tenant config). Returns a real Entra ID
@@ -77,10 +97,23 @@ function toSession(result: MSALResult): EntraIdSession {
  */
 export async function signInWithEntraId(): Promise<EntraIdSession> {
   const client = await getClient();
-  const result = await client.acquireToken({ scopes: [API_SCOPE] });
-  if (!result) {
-    throw new Error('Entra ID sign-in was cancelled or failed');
+
+  let result: MSALResult | null;
+  try {
+    result = await client.acquireToken({ scopes: [API_SCOPE] });
+  } catch (err) {
+    if (isUserCancelled(err)) {
+      throw new EntraSignInError('cancelled', 'Sign-in was cancelled.');
+    }
+    throw new EntraSignInError('failed', 'Sign-in failed. Please try again.');
   }
+
+  // Some platforms/versions resolve with null instead of rejecting on cancel —
+  // handled defensively even though Android's native module currently rejects.
+  if (!result) {
+    throw new EntraSignInError('cancelled', 'Sign-in was cancelled.');
+  }
+
   return toSession(result);
 }
 

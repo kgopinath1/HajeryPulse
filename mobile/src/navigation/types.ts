@@ -3,6 +3,7 @@
 export type RootStackParamList = {
   Login: undefined;
   AppTabs: undefined;
+   Profile: undefined;
   ApprovalDetail: { requestId: string };
 };
 
@@ -12,4 +13,6 @@ export type AppTabsParamList = {
   FB: undefined;
   FinanceOps: undefined;
   Inbox: undefined;
+  Home: undefined;
+ 
 };

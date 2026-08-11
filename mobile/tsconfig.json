@@ -10,7 +10,7 @@
       "@navigation/*": ["navigation/*"],
       "@screens/*": ["screens/*"],
       "@theme/*": ["theme/*"],
-      "@types/*": ["types/*"],
+      "@domain": ["types/domain"],
       "@utils/*": ["utils/*"]
     },
     "strict": true,

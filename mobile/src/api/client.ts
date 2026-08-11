@@ -16,17 +16,29 @@ import { getDeviceId } from '@auth/deviceId';
 // Dev machine's LAN IP — device and dev machine must be on the same Wi-Fi.
 const LAN_IP = '192.168.10.57';
 
-// TEMP: both branches on Kestrel:50758 until port 5000 is opened through the
-// firewall for the IIS deployment (network team ticket pending). Switch the
-// release branch back to `${LAN_IP}:5000` once that's confirmed open.
-const BASE_URL = __DEV__
-  ? `http://${LAN_IP}:5000/api/v1`
-  : `http://${LAN_IP}:5000/api/v1`;
+
+/* const BASE_URL = __DEV__
+  //? `http://${LAN_IP}:5000/api/v1`
+  ? `http://10.20.20.105:4439/api/v1`
+  : `http://10.20.20.105:4439/api/v1`;  */
+
+  const BASE_URL = __DEV__
+  //? `http://${LAN_IP}:5000/api/v1`
+  ? `http://${LAN_IP}:50758/api/v1`
+  : `http://${LAN_IP}:50758/api/v1`;
 
 
 const SPEND_API = __DEV__
   ? 'http://192.168.10.147:8086/api'
   : 'https://spendflow.internal/api';
+
+// Dev-only — prints which backend this build is actually pointed at, so you
+// can confirm it from the Metro/adb log window instead of re-reading this
+// file every time the URL gets swapped between local/LAN/deployed servers.
+if (__DEV__) {
+  console.log(`[HajeryPulse] apiClient BASE_URL = ${BASE_URL}`);
+  console.log(`[HajeryPulse] spendClient BASE_URL = ${SPEND_API}`);
+}
 
 
 export interface ApiError {

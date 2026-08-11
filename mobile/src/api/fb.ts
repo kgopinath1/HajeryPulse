@@ -2,7 +2,7 @@ import { get } from './client';
 import {
   FBBrand, FBOutlet, FBSummary, FbScopeType,
   FBAggregatorRow, FBPaymentRow, FBChannelMix, FBTrend,
-} from '@types/domain';
+} from '@domain';
 
 const params = (
   asOfDate: string,

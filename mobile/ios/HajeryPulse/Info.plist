@@ -46,6 +46,8 @@
 		<string>msauthv2</string>
 		<string>msauthv3</string>
 	</array>
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
 	<key>NSFaceIDUsageDescription</key>
 	<string>Hajery Pulse uses Face ID to unlock the app quickly and securely.</string>
 	<key>UIAppFonts</key>

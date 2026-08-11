@@ -18,7 +18,7 @@ module.exports = {
           '@navigation': './src/navigation',
           '@screens': './src/screens',
           '@theme': './src/theme',
-          '@types': './src/types',
+          '@domain': './src/types/domain',
           '@utils': './src/utils',
            '@assets': './src/assets',
         },

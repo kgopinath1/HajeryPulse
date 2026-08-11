@@ -1,5 +1,6 @@
 import { get } from './client';
-import { CombinedRevenue } from '@types/domain';
+import { HomeQuickKpis } from '@domain';
+import { CombinedRevenue } from '@domain';
 
 export const homeApi = {
   revenueSummary: (asOfDate: string, period: string) =>

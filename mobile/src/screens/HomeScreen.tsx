@@ -39,7 +39,7 @@ import { pharmaApi } from '@api/pharma';
 import {
   BTFilter,
  FbScopeType,
-} from '@types/domain';
+} from '@domain';
 /** Home always shows month-to-date for now. */
 const HOME_PERIOD: Period = 'month';
 

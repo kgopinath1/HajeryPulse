@@ -1,7 +1,7 @@
 import { get, post } from './client';
 import {
   ApprovalRequestSummary, ApprovalRequestDetail, ApprovalStatus,
-} from '@types/domain';
+} from '@domain';
 
 export const inboxApi = {
   list: (status: ApprovalStatus | 'all' = 'Pending', limit = 50) =>

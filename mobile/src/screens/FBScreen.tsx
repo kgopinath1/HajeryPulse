@@ -28,10 +28,11 @@ import { NoDataCard } from '@components/NoDataCard';
 import { fbApi } from '@api/fb';
 import { defaultAsOfDate } from '@utils/date';
 import { fmtKwd, fmtPct, fmtInt, fmtYoy, fmtKwdSmallVal,fmtKwdAsIs } from '@utils/format';
+import { getPeriodLabel, getGrowthCaption } from '@utils/labels';
 import {
   FBBrand, FBOutlet, FBSummary, FbScopeType,
   FBAggregatorRow, FBPaymentRow, FBChannelMix,
-} from '@types/domain';
+} from '@domain';
 
 export function FBScreen(): React.JSX.Element {
 
@@ -108,6 +109,7 @@ export function FBScreen(): React.JSX.Element {
   }, [asOfDate, scopeType, scopeId, period]);
 
   useEffect(() => { load(); }, [load]);
+  const periodLabel = getPeriodLabel(period);
   // const offlineOutlets = Math.max(
   //   (summary?.outletsTotal ?? 0) - (summary?.outletsActive ?? 0),
   //   0
@@ -354,11 +356,11 @@ export function FBScreen(): React.JSX.Element {
                   }
                 />
 
-                <KpiTile label="YoY growth" value={
-                  <Text style={{ color: summary.yoyPct >= 0 ? theme.colors.green : theme.colors.red }}>
-                    {fmtYoy(summary.yoyPct)}
+                <KpiTile label={`${periodLabel} Growth`} value={
+                  <Text style={{ color: summary.growthPct >= 0 ? theme.colors.green : theme.colors.red }}>
+                    {fmtYoy(summary.growthPct)}
                   </Text>
-                } delta={{ value: 'vs last year', positive: summary.yoyPct >= 0 }} />
+                } delta={{ value: getGrowthCaption(period), positive: summary.growthPct >= 0 }} />
               </View>
             ) : (
               <Card>

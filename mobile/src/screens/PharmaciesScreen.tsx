@@ -35,7 +35,7 @@ import {
   Pharmacy, PharmaSummary, PharmaMargin, SalesQuality,
   PharmaChannel, PharmaPaymentRow, PharmaCategoryRow,
   PharmaDiscountRow, PharmaRxOtcMix, PharmaTrend,
-} from '@types/domain';
+} from '@domain';
 
 export function PharmaciesScreen(): React.JSX.Element {
   const [asOfDate, setAsOfDate] = useState<string>(defaultAsOfDate());
@@ -261,7 +261,7 @@ const getTrendLabels = (period: string, length: number): string[] => {
                 </Text>
               }
             />
-            <KpiTile label="Rx share" value={fmtPct(rxMix.rxPct, 2)} chip={{ label: `OTC ${fmtPct(rxMix.otcPct, 2)}`, tone: 'teal' }} />
+            <KpiTile label="Rx share" value={fmtPct(rxMix?.rxPct ?? 0, 2)} chip={{ label: `OTC ${fmtPct(rxMix?.otcPct ?? 0, 2)}`, tone: 'teal' }} />
           </View>
           ) : (
       <Card>
@@ -391,7 +391,7 @@ const getTrendLabels = (period: string, length: number): string[] => {
       <KpiTile
         label="Discount"
         value={fmtKwd(margin.discountKwd)}
-        chip={{ label: `${fmtPct(margin.discountPct)} of Gross` }}
+        chip={{ label: `${fmtPct(margin.discountPct)} of Gross`, tone: 'neutral' }}
       />
 
       <KpiTile
@@ -857,10 +857,7 @@ const styles = StyleSheet.create({
     fontSize: 11, color: theme.colors.text2,
     textTransform: 'uppercase', letterSpacing: 0.6,
   },
-  discBarFill: {
-  height: '100%',
-  borderRadius: 999,
-},
+
   hero: {
     fontFamily: theme.fonts.numeric,
     fontSize: 26, fontWeight: '700', color: theme.colors.text0, marginTop: 4, letterSpacing: -0.5,
@@ -869,6 +866,7 @@ const styles = StyleSheet.create({
   kpiGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 12 },
   kpiGridInner: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 12 },
   marginHeaderRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 8 },
+  marginTrend: { marginTop: 12 },
   payRow: { fontSize: 12, fontWeight: '600', marginVertical: 4 },
   payRow2: { flexDirection: 'row', alignItems: 'center', paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: theme.colors.border },
   discRow: {

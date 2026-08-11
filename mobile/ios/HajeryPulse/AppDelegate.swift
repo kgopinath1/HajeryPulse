@@ -39,7 +39,94 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
       launchOptions: launchOptions
     )
 
+    registerPrivacyObservers()
+
     return true
+  }
+
+  // MARK: - Screenshot / screen-recording / app-switcher privacy
+  //
+  // iOS gives apps no API to block a screenshot outright (unlike Android's
+  // FLAG_SECURE) — only to detect one after the fact, and to react in real
+  // time to screen recording/mirroring. Combined with hiding content behind
+  // a blur whenever the app is backgrounded, this covers the three places
+  // business data could otherwise leak: the app-switcher snapshot, a live
+  // screen recording, and (via after-the-fact detection) a screenshot.
+  private var privacyOverlay: UIVisualEffectView?
+  private var isAppBackgrounded = false
+  private var isScreenCaptured = false
+
+  private func registerPrivacyObservers() {
+    NotificationCenter.default.addObserver(
+      forName: UIScreen.capturedDidChangeNotification, object: nil, queue: .main
+    ) { [weak self] _ in
+      self?.isScreenCaptured = UIScreen.main.isCaptured
+      self?.updatePrivacyOverlay()
+    }
+
+    NotificationCenter.default.addObserver(
+      forName: UIApplication.userDidTakeScreenshotNotification, object: nil, queue: .main
+    ) { [weak self] _ in
+      self?.flashScreenshotWarning()
+    }
+  }
+
+  func applicationDidEnterBackground(_ application: UIApplication) {
+    isAppBackgrounded = true
+    updatePrivacyOverlay()
+  }
+
+  func applicationWillEnterForeground(_ application: UIApplication) {
+    isAppBackgrounded = false
+    updatePrivacyOverlay()
+  }
+
+  private func updatePrivacyOverlay() {
+    if isAppBackgrounded || isScreenCaptured {
+      showPrivacyOverlay()
+    } else {
+      hidePrivacyOverlay()
+    }
+  }
+
+  private func showPrivacyOverlay() {
+    guard privacyOverlay == nil, let window = window else { return }
+    let overlay = UIVisualEffectView(effect: UIBlurEffect(style: .dark))
+    overlay.frame = window.bounds
+    overlay.autoresizingMask = [.flexibleWidth, .flexibleHeight]
+    window.addSubview(overlay)
+    privacyOverlay = overlay
+  }
+
+  private func hidePrivacyOverlay() {
+    privacyOverlay?.removeFromSuperview()
+    privacyOverlay = nil
+  }
+
+  private func flashScreenshotWarning() {
+    guard let window = window else { return }
+    let banner = UILabel()
+    banner.text = "Screenshot detected"
+    banner.textColor = .white
+    banner.backgroundColor = UIColor.systemRed.withAlphaComponent(0.9)
+    banner.textAlignment = .center
+    banner.font = .boldSystemFont(ofSize: 13)
+    banner.layer.cornerRadius = 8
+    banner.clipsToBounds = true
+    banner.alpha = 0
+    banner.translatesAutoresizingMaskIntoConstraints = false
+    window.addSubview(banner)
+    NSLayoutConstraint.activate([
+      banner.topAnchor.constraint(equalTo: window.safeAreaLayoutGuide.topAnchor, constant: 8),
+      banner.leadingAnchor.constraint(equalTo: window.leadingAnchor, constant: 16),
+      banner.trailingAnchor.constraint(equalTo: window.trailingAnchor, constant: -16),
+      banner.heightAnchor.constraint(equalToConstant: 32),
+    ])
+    UIView.animate(withDuration: 0.2, animations: { banner.alpha = 1 }) { _ in
+      UIView.animate(withDuration: 0.3, delay: 2.0, options: [], animations: { banner.alpha = 0 }) { _ in
+        banner.removeFromSuperview()
+      }
+    }
   }
 
   // MARK: - Runtime security gate (release builds only)

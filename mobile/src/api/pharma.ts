@@ -3,7 +3,7 @@ import {
   Pharmacy, PharmaSummary, PharmaMargin, SalesQuality,
   PharmaChannel, PharmaPaymentRow, PharmaCategoryRow,
   PharmaDiscountRow, PharmaRxOtcMix, PharmaTrend,
-} from '@types/domain';
+} from '@domain';
 
 export const pharmaApi = {
   list: (asOfDate: string,  period: 'day' | 'week' | 'month' | 'ytd' = 'week') =>
@@ -19,7 +19,7 @@ export const pharmaApi = {
     get<SalesQuality>('/pharma/quality', { asOfDate, pharmacyId, period }),
 
   channels: (asOfDate: string, pharmacyId: string, period: 'day' | 'week' | 'month' | 'ytd' = 'week') =>
-    get<PharmaChannel>('/pharma/channels', { asOfDate, pharmacyId, period }),
+    get<PharmaChannel[]>('/pharma/channels', { asOfDate, pharmacyId, period }),
 
   payments: (asOfDate: string, pharmacyId: string, period: 'day' | 'week' | 'month' | 'ytd' = 'week') =>
     get<PharmaPaymentRow[]>('/pharma/payments', { asOfDate, pharmacyId, period }),

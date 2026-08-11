@@ -10,22 +10,30 @@
  * Exposes:
  *   user, isLoading, signIn(), signOut(), reauthenticate()
  */
-import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
-import { Alert } from 'react-native';
+import React, { createContext, useContext, useEffect, useState, useCallback, useRef } from 'react';
+import { Alert, AppState, AppStateStatus } from 'react-native';
 import { getMe, signOut as signOutOnServer } from '@api/auth';
 import { setAccessToken, clearAccessToken } from './tokens';
 import { signInWithEntraId, acquireTokenSilently, signOutEntraId, hasCachedAccount } from './entraId';
 import { requireBiometric } from './biometric';
 import { isRuntimeCompromised } from './emulatorGuard';
-import { AuthUser } from '@types/domain';
+import { AuthUser } from '@domain';
+
+// How long the app can sit backgrounded before returning requires a fresh
+// biometric unlock. Bounds how long a signed-in session survives on a
+// device left unattended, independent of how long the underlying MSAL
+// token itself stays valid.
+const INACTIVITY_LOCK_MS = 5 * 60 * 1000;
 
 interface AuthContextValue {
   user: AuthUser | null;
   isLoading: boolean;
   blocked: boolean;
+  locked: boolean;
   signIn: () => Promise<void>;
   signOut: () => Promise<void>;
   reauthenticate: () => Promise<boolean>;
+  unlock: () => Promise<boolean>;
 }
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
@@ -34,6 +42,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }): React
   const [user, setUser] = useState<AuthUser | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [blocked, setBlocked] = useState<boolean>(false);
+  const [locked, setLocked] = useState<boolean>(false);
+  const backgroundedAtRef = useRef<number | null>(null);
 
   // Boot: try to restore session
   useEffect(() => {
@@ -72,9 +82,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }): React
       } catch (err) {
         // Without this, a thrown error (e.g. MSAL native init failing) would
         // leave isLoading stuck true forever — infinite spinner, no login
-        // screen, no crash report. Surface it directly since a device build
-        // has no attached console to see it in otherwise.
-        Alert.alert('Startup error', String(err));
+        // screen, no crash report. Logged in full for diagnosis; the alert
+        // itself stays generic in release builds so a native/internal error
+        // message is never shown to the end user.
+        console.error('[HajeryPulse] Startup error:', err);
+        Alert.alert(
+          'Startup error',
+          __DEV__ ? String(err) : 'Something went wrong while starting the app. Please try again.'
+        );
       } finally {
         setIsLoading(false);
       }
@@ -93,6 +108,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }): React
     }, 20_000);
     return () => clearInterval(interval);
   }, []);
+
+  // Re-lock after the app has spent long enough backgrounded — a phone left
+  // unlocked and unattended shouldn't stay signed in indefinitely just
+  // because the underlying MSAL token hasn't expired yet.
+  useEffect(() => {
+    const onChange = (state: AppStateStatus) => {
+      if (state === 'background') {
+        if (user) backgroundedAtRef.current = Date.now();
+        return;
+      }
+      if (state === 'active' && backgroundedAtRef.current != null) {
+        const elapsed = Date.now() - backgroundedAtRef.current;
+        backgroundedAtRef.current = null;
+        if (user && elapsed > INACTIVITY_LOCK_MS) {
+          setLocked(true);
+        }
+      }
+    };
+    const sub = AppState.addEventListener('change', onChange);
+    return () => sub.remove();
+  }, [user]);
 
   const signIn = useCallback(async () => {
     setIsLoading(true);
@@ -115,14 +151,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }): React
     await signOutEntraId();
     clearAccessToken();
     setUser(null);
+    setLocked(false);
   }, []);
 
   const reauthenticate = useCallback(async () => {
     return requireBiometric('Confirm to continue');
   }, []);
 
+  const unlock = useCallback(async () => {
+    const ok = await requireBiometric('Unlock Hajery Pulse');
+    if (ok) setLocked(false);
+    return ok;
+  }, []);
+
   return (
-    <AuthContext.Provider value={{ user, isLoading, blocked, signIn, signOut, reauthenticate }}>
+    <AuthContext.Provider value={{ user, isLoading, blocked, locked, signIn, signOut, reauthenticate, unlock }}>
       {children}
     </AuthContext.Provider>
   );

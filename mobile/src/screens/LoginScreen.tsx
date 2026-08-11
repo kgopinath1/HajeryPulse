@@ -4,6 +4,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '@auth/AuthContext';
+import { EntraSignInError } from '@auth/entraId';
 import { theme } from '@theme/index';
 
 export function LoginScreen(): React.JSX.Element {
@@ -14,8 +15,15 @@ export function LoginScreen(): React.JSX.Element {
     setBusy(true);
     try {
       await signIn();
-    } catch (e: any) {
-      Alert.alert('Sign-in failed', e.message ?? 'Please try again.');
+    } catch (e) {
+      // A deliberate cancel isn't an error worth interrupting the user
+      // over — they already know they backed out, so just return them
+      // to this screen quietly instead of alerting.
+      if (e instanceof EntraSignInError && e.reason === 'cancelled') {
+        return;
+      }
+      const message = e instanceof EntraSignInError ? e.message : 'Please try again.';
+      Alert.alert('Sign-in failed', message);
     } finally {
       setBusy(false);
     }

@@ -16,7 +16,7 @@ import { Chip } from '@components/Chip';
 import { useAuth } from '@auth/AuthContext';
 import { inboxApi } from '@api/inbox';
 import { fmtKwd } from '@utils/format';
-import { ApprovalRequestDetail } from '@types/domain';
+import { ApprovalRequestDetail } from '@domain';
 import { RootStackParamList } from '@navigation/types';
 
 type Route = RouteProp<RootStackParamList, 'ApprovalDetail'>;

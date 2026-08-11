@@ -2,21 +2,27 @@ import React from 'react';
 import { Text, View, StyleSheet } from 'react-native';
 import { theme } from '@theme/index';
 import { Chip, ChipTone } from './Chip';
+import { InfoToolTip } from './InfoToolTip';
 
 interface KpiTileProps {
-  label: string;
+  label: string | React.ReactNode;
   value: string | React.ReactNode;
   // allow delta value to be a React node so callers can style parts of it
   delta?: { value: string | React.ReactNode; positive: boolean };
   chip?:  { label: string; tone: ChipTone };
   subtitle?: string;
   valueColor?: string;
+  /** Tooltip text shown via a small info icon next to the label. */
+  info?: string;
 }
 
-export function KpiTile({ label, value, delta, chip, subtitle, valueColor }: KpiTileProps): React.JSX.Element {
+export function KpiTile({ label, value, delta, chip, subtitle, valueColor, info }: KpiTileProps): React.JSX.Element {
   return (
     <View style={styles.tile}>
-      <Text style={styles.label}>{label}</Text>
+      <View style={styles.labelRow}>
+        {typeof label === 'string' ? <Text style={styles.label}>{label}</Text> : label}
+        {info && <InfoToolTip text={info} style={styles.infoIcon} />}
+      </View>
       <Text style={[styles.value, { color: valueColor || theme.colors.text0 }]}>{value}</Text>
       {subtitle && <Text style={styles.subtitle}>{subtitle}</Text>}
       {delta && (
@@ -43,6 +49,14 @@ const styles = StyleSheet.create({
     borderRadius: theme.radius.md,
     borderWidth: 1,
     borderColor: theme.colors.border,
+  },
+  labelRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  infoIcon: {
+    marginTop: -1,
   },
   label: {
     fontSize: theme.fontSize.xs,

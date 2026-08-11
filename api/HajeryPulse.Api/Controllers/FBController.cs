@@ -9,7 +9,7 @@ namespace HajeryPulse.Api.Controllers;
 [ApiController]
 [Authorize]
 
-//[AllowAnonymous]
+
 
 [Route("api/v1/fb")]
 public sealed class FBController : ControllerBase
@@ -31,43 +31,13 @@ public sealed class FBController : ControllerBase
         => Ok(await _service.GetSummary(asOfDate, scopeType, scopeId,period));
 
 
-    //[HttpGet("brand-summary")]
-    //public async Task<ActionResult<IEnumerable<FBBrandDto>>> GetBrandSummary([FromQuery] string asOfDate, [FromQuery] string scopeType = "all", [FromQuery] string? scopeId = null, [FromQuery] string period = "week")
-    //    => Ok(await _service.GetBrandSummary(asOfDate, scopeType, scopeId, period));
-
     [HttpGet("brand-summary")]
     public async Task<ActionResult<IEnumerable<FBBrandDto>>> GetBrandSummary(
-    [FromQuery] string asOfDate,
-    [FromQuery] string scopeType = "all",
-    [FromQuery] string? scopeId = null,
-    [FromQuery] string period = "week")
-    {
-        try
-        {
-            Console.WriteLine($"asOfDate: {asOfDate}");
-            Console.WriteLine($"scopeType: {scopeType}");
-            Console.WriteLine($"scopeId: {scopeId}");
-            Console.WriteLine($"period: {period}");
-
-            var result = await _service.GetBrandSummary(
-                asOfDate,
-                scopeType,
-                scopeId,
-                period
-            );
-
-            Console.WriteLine($"Brand Count: {result?.Count()}");
-
-            return Ok(result);
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine("BRAND SUMMARY ERROR:");
-            Console.WriteLine(ex.ToString());
-
-            return StatusCode(500, ex.ToString());
-        }
-    }
+        [FromQuery] string asOfDate,
+        [FromQuery] string scopeType = "all",
+        [FromQuery] string? scopeId = null,
+        [FromQuery] string period = "week")
+        => Ok(await _service.GetBrandSummary(asOfDate, scopeType, scopeId, period));
 
 
     [HttpGet("aggregators")]

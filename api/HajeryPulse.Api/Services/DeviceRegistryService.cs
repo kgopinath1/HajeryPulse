@@ -1,4 +1,5 @@
-using System.Text.Json;
+using Dapper;
+using HajeryPulse.Api.Data;
 
 namespace HajeryPulse.Api.Services;
 
@@ -27,8 +28,8 @@ public interface IDeviceRegistryService
 }
 
 /// <summary>
-/// Flat-file device allowlist, persisted as JSON. Until real RBAC ships, this is
-/// the compensating control: only devices an admin has explicitly approved may
+/// SQL-backed device allowlist. Until real RBAC ships, this is the
+/// compensating control: only devices an admin has explicitly approved may
 /// use the API at all. A device seen for the first time is recorded (so an
 /// admin can find its ID to approve it) but blocked until approved. Blacklist
 /// sits on top as an explicit revocation, overriding approval either way.
@@ -41,164 +42,81 @@ public interface IDeviceRegistryService
 /// </summary>
 public sealed class DeviceRegistryService : IDeviceRegistryService
 {
-    private readonly string _filePath;
-    private readonly SemaphoreSlim _lock = new(1, 1);
-    private Dictionary<string, DeviceRecord> _cache = new(StringComparer.OrdinalIgnoreCase);
-    private bool _loaded;
+    private readonly IDbConnectionFactory _factory;
 
-    private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web)
-    {
-        WriteIndented = true,
-    };
+    public DeviceRegistryService(IDbConnectionFactory factory) => _factory = factory;
 
-    public DeviceRegistryService(IConfiguration config)
-    {
-        _filePath = config["DeviceControl:RegistryFilePath"] ?? "App_Data/devices.json";
-    }
-
-    private async Task EnsureLoadedAsync()
-    {
-        if (_loaded) return;
-        await _lock.WaitAsync();
-        try
-        {
-            if (_loaded) return;
-            if (File.Exists(_filePath))
-            {
-                var json = await File.ReadAllTextAsync(_filePath);
-                _cache = JsonSerializer.Deserialize<Dictionary<string, DeviceRecord>>(json, JsonOptions)
-                         ?? new(StringComparer.OrdinalIgnoreCase);
-            }
-            _loaded = true;
-        }
-        finally
-        {
-            _lock.Release();
-        }
-    }
-
-    private async Task SaveAsync()
-    {
-        var dir = Path.GetDirectoryName(_filePath);
-        if (!string.IsNullOrEmpty(dir)) Directory.CreateDirectory(dir);
-        var json = JsonSerializer.Serialize(_cache, JsonOptions);
-        await File.WriteAllTextAsync(_filePath, json);
-    }
-
-    // Written on every request that carries X-Device-Id — fine for this app's
-    // traffic volume; if that ever changes, batch/throttle the disk writes.
-    // New devices are recorded but NOT approved — approval is a separate,
-    // explicit admin action (ApproveAsync). Seeing a device must never imply
-    // trusting it, or the allowlist model is defeated.
+    // Runs on every request that carries X-Device-Id. New devices are
+    // recorded but NOT approved — approval is a separate, explicit admin
+    // action (ApproveAsync). Seeing a device must never imply trusting it,
+    // or the allowlist model is defeated. MERGE keeps the upsert atomic so
+    // concurrent requests for the same device can't race each other.
     public async Task<DeviceRecord> TouchAsync(string deviceId, string? userId, string? platform)
     {
-        await EnsureLoadedAsync();
-        await _lock.WaitAsync();
-        try
-        {
-            var now = DateTime.UtcNow;
-            if (_cache.TryGetValue(deviceId, out var rec))
-            {
-                rec.LastSeenUtc = now;
-                if (userId != null) rec.UserId = userId;
-                if (platform != null) rec.Platform = platform;
-            }
-            else
-            {
-                rec = new DeviceRecord
-                {
-                    DeviceId = deviceId,
-                    UserId = userId,
-                    Platform = platform,
-                    FirstSeenUtc = now,
-                    LastSeenUtc = now,
-                };
-                _cache[deviceId] = rec;
-            }
-            await SaveAsync();
-            return rec;
-        }
-        finally
-        {
-            _lock.Release();
-        }
+        using var c = await _factory.OpenAsync();
+        const string sql = @"
+MERGE dbo.Devices AS target
+USING (SELECT @DeviceId AS DeviceId) AS src
+ON target.DeviceId = src.DeviceId
+WHEN MATCHED THEN
+    UPDATE SET LastSeenUtc = @Now,
+               UserId = COALESCE(@UserId, target.UserId),
+               Platform = COALESCE(@Platform, target.Platform)
+WHEN NOT MATCHED THEN
+    INSERT (DeviceId, UserId, Platform, FirstSeenUtc, LastSeenUtc, IsApproved, IsBlacklisted)
+    VALUES (@DeviceId, @UserId, @Platform, @Now, @Now, 0, 0)
+OUTPUT inserted.*;";
+        return await c.QueryFirstAsync<DeviceRecord>(sql,
+            new { DeviceId = deviceId, UserId = userId, Platform = platform, Now = DateTime.UtcNow });
     }
 
     public async Task<DeviceRecord> ApproveAsync(string deviceId)
     {
-        await EnsureLoadedAsync();
-        await _lock.WaitAsync();
-        try
-        {
-            if (!_cache.TryGetValue(deviceId, out var rec))
-            {
-                rec = new DeviceRecord { DeviceId = deviceId, FirstSeenUtc = DateTime.UtcNow, LastSeenUtc = DateTime.UtcNow };
-                _cache[deviceId] = rec;
-            }
-            rec.IsApproved = true;
-            rec.ApprovedAtUtc = DateTime.UtcNow;
-            await SaveAsync();
-            return rec;
-        }
-        finally
-        {
-            _lock.Release();
-        }
+        using var c = await _factory.OpenAsync();
+        const string sql = @"
+MERGE dbo.Devices AS target
+USING (SELECT @DeviceId AS DeviceId) AS src
+ON target.DeviceId = src.DeviceId
+WHEN MATCHED THEN
+    UPDATE SET IsApproved = 1, ApprovedAtUtc = @Now
+WHEN NOT MATCHED THEN
+    INSERT (DeviceId, FirstSeenUtc, LastSeenUtc, IsApproved, ApprovedAtUtc, IsBlacklisted)
+    VALUES (@DeviceId, @Now, @Now, 1, @Now, 0)
+OUTPUT inserted.*;";
+        return await c.QueryFirstAsync<DeviceRecord>(sql, new { DeviceId = deviceId, Now = DateTime.UtcNow });
     }
 
     public async Task<IReadOnlyCollection<DeviceRecord>> ListAsync()
     {
-        await EnsureLoadedAsync();
-        await _lock.WaitAsync();
-        try
-        {
-            return _cache.Values.OrderByDescending(d => d.LastSeenUtc).ToList();
-        }
-        finally
-        {
-            _lock.Release();
-        }
+        using var c = await _factory.OpenAsync();
+        var rows = await c.QueryAsync<DeviceRecord>("SELECT * FROM dbo.Devices ORDER BY LastSeenUtc DESC");
+        return rows.ToList();
     }
 
     public async Task<DeviceRecord> BlacklistAsync(string deviceId, string? reason)
     {
-        await EnsureLoadedAsync();
-        await _lock.WaitAsync();
-        try
-        {
-            if (!_cache.TryGetValue(deviceId, out var rec))
-            {
-                rec = new DeviceRecord { DeviceId = deviceId, FirstSeenUtc = DateTime.UtcNow, LastSeenUtc = DateTime.UtcNow };
-                _cache[deviceId] = rec;
-            }
-            rec.IsBlacklisted = true;
-            rec.BlacklistedAtUtc = DateTime.UtcNow;
-            rec.BlacklistReason = reason;
-            await SaveAsync();
-            return rec;
-        }
-        finally
-        {
-            _lock.Release();
-        }
+        using var c = await _factory.OpenAsync();
+        const string sql = @"
+MERGE dbo.Devices AS target
+USING (SELECT @DeviceId AS DeviceId) AS src
+ON target.DeviceId = src.DeviceId
+WHEN MATCHED THEN
+    UPDATE SET IsBlacklisted = 1, BlacklistedAtUtc = @Now, BlacklistReason = @Reason
+WHEN NOT MATCHED THEN
+    INSERT (DeviceId, FirstSeenUtc, LastSeenUtc, IsApproved, IsBlacklisted, BlacklistedAtUtc, BlacklistReason)
+    VALUES (@DeviceId, @Now, @Now, 0, 1, @Now, @Reason)
+OUTPUT inserted.*;";
+        return await c.QueryFirstAsync<DeviceRecord>(sql, new { DeviceId = deviceId, Now = DateTime.UtcNow, Reason = reason });
     }
 
     public async Task<bool> UnblacklistAsync(string deviceId)
     {
-        await EnsureLoadedAsync();
-        await _lock.WaitAsync();
-        try
-        {
-            if (!_cache.TryGetValue(deviceId, out var rec)) return false;
-            rec.IsBlacklisted = false;
-            rec.BlacklistedAtUtc = null;
-            rec.BlacklistReason = null;
-            await SaveAsync();
-            return true;
-        }
-        finally
-        {
-            _lock.Release();
-        }
+        using var c = await _factory.OpenAsync();
+        const string sql = @"
+UPDATE dbo.Devices
+SET IsBlacklisted = 0, BlacklistedAtUtc = NULL, BlacklistReason = NULL
+WHERE DeviceId = @DeviceId;";
+        var rows = await c.ExecuteAsync(sql, new { DeviceId = deviceId });
+        return rows > 0;
     }
 }

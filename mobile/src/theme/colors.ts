@@ -7,6 +7,7 @@ export const colors = {
   // Surfaces
   bg0:        '#0a0d14',   // page background
   bg1:        '#0f1320',   // device shell
+  bg2: '#3A3320',   // widget background
   surface:    '#141927',   // base card
   surfaceHi:  '#1a2030',   // hover/active card
   border:     'rgba(255,255,255,0.06)',

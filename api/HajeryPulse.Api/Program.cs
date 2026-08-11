@@ -3,15 +3,18 @@ using HajeryPulse.Api.Data;
 using HajeryPulse.Api.Data.Repositories;
 using HajeryPulse.Api.Middleware;
 using HajeryPulse.Api.Services;
+using HajeryPulse.Api.Validation;
 using Microsoft.Data.SqlClient;
 using Microsoft.Identity.Web;
 using Serilog;
-using StackExchange.Redis;
-using Microsoft.AspNetCore.Authentication.JwtBearer; 
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+
 
 
 var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddLogging();
+var clientId = builder.Configuration["EntraId:ClientId"];
+var audienceUri = builder.Configuration["EntraId:Audience"];
 
 // ---------- Logging ----------
 builder.Host.UseSerilog((ctx, lc) => lc
@@ -28,7 +31,10 @@ builder.Host.UseSerilog((ctx, lc) => lc
 builder.Services
     .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddMicrosoftIdentityWebApi(builder.Configuration.GetSection("EntraId"));
-
+builder.Services.PostConfigure<JwtBearerOptions>(JwtBearerDefaults.AuthenticationScheme, options =>
+{
+    options.TokenValidationParameters.ValidAudiences = new[] { audienceUri, clientId };
+});
 builder.Services.AddAuthorization(options =>
 {
     // TODO: restore real role checks once role source (App Roles vs groups)
@@ -46,14 +52,10 @@ builder.Services.AddCors(o => o.AddDefaultPolicy(p => p
 
 // ---------- Health checks ----------
 var sqlConnString   = builder.Configuration.GetConnectionString("ReportingDb")!;
-//var redisConnString = builder.Configuration.GetConnectionString("Redis")!;
 builder.Services.AddHealthChecks()
     .AddSqlServer(sqlConnString, name: "reporting-db");
-   // .AddRedis(redisConnString,   name: "redis-cache");
 
-// ---------- Data + cache ----------
-//builder.Services.AddSingleton<IConnectionMultiplexer>(_ =>
-//    ConnectionMultiplexer.Connect(redisConnString));
+// ---------- Data ----------
 builder.Services.AddScoped<SqlConnection>(_ => new SqlConnection(sqlConnString));
 builder.Services.AddScoped<IDbConnectionFactory, DbConnectionFactory>();
 
@@ -68,17 +70,16 @@ builder.Services.AddHttpClient<IInboxRepository, InboxRepository>(client =>
     client.BaseAddress = new Uri("http://192.168.10.147:8086/");
 });
 // ---------- Services ----------
-//builder.Services.AddScoped<ICacheService,   RedisCacheService>();
 builder.Services.AddScoped<ISalesService,   SalesService>();
 builder.Services.AddScoped<IPharmaService,  PharmaService>();
 builder.Services.AddScoped<IFBService,      FBService>();
 builder.Services.AddScoped<IFinanceService, FinanceService>();
 builder.Services.AddScoped<IInboxService, InboxService>();
 builder.Services.AddScoped<IHomeService,    HomeService>();
-builder.Services.AddSingleton<IDeviceRegistryService, DeviceRegistryService>();
+builder.Services.AddScoped<IDeviceRegistryService, DeviceRegistryService>();
 
 // ---------- API + Swagger ----------
-builder.Services.AddControllers();
+builder.Services.AddControllers(options => options.Filters.Add<QueryValidationFilter>());
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(c =>
 {
@@ -97,8 +98,15 @@ if (app.Environment.IsDevelopment())
     app.UseSwagger();
     app.UseSwaggerUI();
 }
+else
+{
+    // Only enforced outside Development — local Kestrel/dotnet run testing
+    // stays on http:// with no real certificate available; a real deployment
+    // (Production) now has one, so this is finally safe to turn on.
+    app.UseHsts();
+    app.UseHttpsRedirection();
+}
 
-//app.UseHttpsRedirection();
 app.UseCors();
 app.UseAuthentication();
 app.UseMiddleware<DeviceControlMiddleware>();

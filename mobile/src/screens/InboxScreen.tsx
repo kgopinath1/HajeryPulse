@@ -16,7 +16,7 @@ import { Chip } from '@components/Chip';
 import { SegTabs } from '@components/SegTabs';
 import { inboxApi } from '@api/inbox';
 import { fmtKwd } from '@utils/format';
-import { ApprovalRequestSummary, ApprovalStatus } from '@types/domain';
+import { ApprovalRequestSummary, ApprovalStatus } from '@domain';
 import { RootStackParamList } from '@navigation/types';
 
 type Nav = NativeStackNavigationProp<RootStackParamList, 'AppTabs'>;

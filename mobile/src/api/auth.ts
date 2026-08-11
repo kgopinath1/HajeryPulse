@@ -1,5 +1,5 @@
 import { apiClient, get } from './client';
-import { AuthUser } from '@types/domain';
+import { AuthUser } from '@domain';
 
 /**
  * Fetch the signed-in user's profile. The API derives this from the

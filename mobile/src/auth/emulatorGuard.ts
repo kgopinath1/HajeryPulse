@@ -32,9 +32,25 @@ export function isBlockedByHooking(): boolean {
   }
 }
 
+/** MASTG-BEST — root detection on Android, via the same SecurityChecks
+ * native module. Distinct from isBlockedByHooking(): most rooted devices
+ * aren't actively running Frida/Xposed, so this catches root access sitting
+ * idle. No iOS equivalent here either — jailbreak detection lives in
+ * AppDelegate.swift and blocks at launch instead. */
+export function isBlockedByRoot(): boolean {
+  if (__DEV__) return false;
+  if (Platform.OS !== 'android') return false;
+  try {
+    return NativeModules.SecurityChecks?.isRootedSync?.() ?? false;
+  } catch {
+    return false;
+  }
+}
+
 /** Combined check used both at boot and by the periodic re-check — a device
- * could become an emulator-like or hooked environment only after launch
- * (e.g. Frida attaching mid-session), so this isn't just a one-time gate. */
+ * could become an emulator-like, hooked, or rooted environment only after
+ * launch (e.g. Frida attaching mid-session), so this isn't just a one-time
+ * gate. */
 export async function isRuntimeCompromised(): Promise<boolean> {
-  return (await isBlockedEmulator()) || isBlockedByHooking();
+  return (await isBlockedEmulator()) || isBlockedByHooking() || isBlockedByRoot();
 }

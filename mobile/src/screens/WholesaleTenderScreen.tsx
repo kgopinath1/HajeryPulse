@@ -33,7 +33,7 @@ import { fmtKwd, fmtPct, fmtInt, fmtYoy, fmtYoyPp, fmtPpNumber, fmtKwdAsIs } fro
 import {
   BTFilter, WTSummary, MarginAnalysis, SalesQuality,
   OrgNode, TopBrand, TopCustomer,
-} from '@types/domain';
+} from '@domain';
 
 export function WholesaleTenderScreen(): React.JSX.Element {
   const [asOfDate, setAsOfDate] = useState<string>(defaultAsOfDate());
@@ -238,7 +238,9 @@ const showNoData = !loading && !hasData;
     <KpiTile label="Active tenders" value={String(summary.kpis.activeTenders)} chip={{
       label: `${fmtKwd(summary.kpis.pipelineAmount)} pipeline`,
       tone: 'blue'
-    }} />
+    }}
+      info="As of the last data refresh — figures can change. Independent of the selected period; always shown as of yesterday's date."
+    />
     <KpiTile label="Avg. tender value" value={fmtKwd(summary.kpis.avgTenderValueKwd)}
       delta={{ value: `${summary.kpis.avgTenderValuePct?.toFixed(1) || 0}%`, positive: summary.kpis.avgTenderValuePct >= 0 }} />
   </View>
@@ -459,10 +461,10 @@ const showNoData = !loading && !hasData;
                 <View style={styles.codeBadge}>
                   <Text style={styles.codeText}>{child.key}</Text>
                 </View>
-                <Text style={styles.title}>{child.name}</Text>
+                <Text style={styles.title} numberOfLines={1}>{child.name}</Text>
                 {child.hasChildren && <Text style={styles.chevron}>›</Text>}
               </View>
-              <Text style={styles.amount}>{fmtKwdAsIs(total)}</Text>
+              <Text style={styles.amount} numberOfLines={1}>{fmtKwdAsIs(total)}</Text>
             </View>
 
             <View style={styles.progressTrack}>
@@ -685,6 +687,9 @@ emptyText: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
+    flex: 1,
+    minWidth: 0,
+    marginRight: 12,
   },
   rankBadge: {
     backgroundColor: theme.colors.bg2,
@@ -702,13 +707,15 @@ emptyText: {
     color: theme.colors.text0,
     fontWeight: '600',
     fontSize: 14,
+    flexShrink: 1,
   },
 
 
   chevron: {
     color: '#6B7280',
     fontSize: 18,
-    marginLeft: 6
+    marginLeft: 6,
+    flexShrink: 0,
   },
 
   deptTag: {
@@ -718,6 +725,7 @@ emptyText: {
   }, amount: {
     color: theme.colors.text0,
     fontWeight: '700',
+    flexShrink: 0,
   },
   progressTrack: {
     height: 4,
