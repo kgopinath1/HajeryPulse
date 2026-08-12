@@ -9,6 +9,9 @@
 # Logs
 **/logs/
 
+# adb logcat debug dumps
+mobile/logcat_signin*.txt
+
 # Node packages
 node_modules/
 **/node_modules/

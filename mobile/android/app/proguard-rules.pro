@@ -34,3 +34,20 @@
 -keepattributes *Annotation*
 -keepattributes Signature
 -keepattributes InnerClasses
+
+# Gson — used internally by MSAL's common library for broker/cache
+# (de)serialization via TypeToken. The com.microsoft.identity.** keep rule
+# above does NOT cover this separate dependency, so R8 was still free to
+# strip the generic type info Gson's reflection needs, producing the same
+# "Missing type parameter" error even with that rule in place. Rules below
+# are MSAL's own official consumer-rules.pro Gson section.
+-dontwarn sun.misc.**
+-keep class * extends com.google.gson.TypeAdapter
+-keep class * implements com.google.gson.TypeAdapterFactory
+-keep class * implements com.google.gson.JsonSerializer
+-keep class * implements com.google.gson.JsonDeserializer
+-keep class com.google.gson.reflect.TypeToken { *; }
+-keep class * extends com.google.gson.reflect.TypeToken { *; }
+-keepclassmembers class * {
+  @com.google.gson.annotations.SerializedName <fields>;
+}

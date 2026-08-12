@@ -5,7 +5,13 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '@auth/AuthContext';
 import { EntraSignInError } from '@auth/entraId';
+import { ApiError } from '@api/client';
 import { theme } from '@theme/index';
+
+/** ApiError is a plain object shape (not an Error instance), so check by duck-typing. */
+function isApiError(e: unknown): e is ApiError {
+  return typeof e === 'object' && e !== null && 'code' in e && 'message' in e && 'status' in e;
+}
 
 export function LoginScreen(): React.JSX.Element {
   const { signIn } = useAuth();
@@ -22,7 +28,14 @@ export function LoginScreen(): React.JSX.Element {
       if (e instanceof EntraSignInError && e.reason === 'cancelled') {
         return;
       }
-      const message = e instanceof EntraSignInError ? e.message : 'Please try again.';
+      // ApiError messages are backend-crafted for end-user display (e.g. device
+      // approval/blacklist notices from DeviceControlMiddleware) — safe to show
+      // directly, unlike an arbitrary raw exception's message.
+      const message = e instanceof EntraSignInError
+        ? e.message
+        : isApiError(e)
+          ? e.message
+          : 'Please try again.';
       Alert.alert('Sign-in failed', message);
     } finally {
       setBusy(false);

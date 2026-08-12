@@ -19,12 +19,17 @@ import { getDeviceId } from '@auth/deviceId';
 // Device and dev machine must be on the same Wi-Fi.
 const DEV_LAN_IP = '192.168.10.57';
 
-const BASE_URL = __DEV__
+ const BASE_URL = __DEV__
   ? Platform.OS === 'ios'
     ? `https://localhost:50757/api/v1`
     : `https://${DEV_LAN_IP}:50757/api/v1`
-  : `https://10.20.20.105:4439/api/v1`;
-
+  : `https://helpdesk.hajery.com:4477/api/v1`;
+ 
+/*  const BASE_URL = __DEV__
+  ? Platform.OS === 'ios'
+    ? `https://helpdesk.hajery.com:4477`
+    : `https://helpdesk.hajery.com:4477`
+  : `https://helpdesk.hajery.com:4477`; */
 
 const SPEND_API = __DEV__
   ? 'http://192.168.10.147:8086/api'
