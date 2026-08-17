@@ -13,16 +13,18 @@ import { getStoredAccessToken, setAccessToken } from '@auth/tokens';
 import { acquireTokenSilently } from '@auth/entraId';
 import { getDeviceId } from '@auth/deviceId';
 
-// Dev machine's LAN IP — only needed for Android, since a physical Android
-// device can't resolve "localhost" to the dev machine the way iOS Simulator
-// can (Simulator shares the Mac's network stack; a real device doesn't).
-// Device and dev machine must be on the same Wi-Fi.
-const DEV_LAN_IP = '192.168.10.57';
-
- const BASE_URL = __DEV__
-  ? Platform.OS === 'ios'
-    ? `https://localhost:50757/api/v1`
-    : `https://${DEV_LAN_IP}:50757/api/v1`
+// Android routes through "localhost" too, same as iOS Simulator — but only
+// works because of `adb reverse tcp:50757 tcp:50757`, forwarding the
+// device's localhost:50757 to this machine's localhost:50757 over USB.
+// Required for two reasons: (1) a physical Android device can't otherwise
+// resolve "localhost" to the dev machine the way iOS Simulator can (it
+// shares the Mac's network stack; a real device doesn't), and (2) the
+// ASP.NET Core dev HTTPS cert's SAN list only covers localhost/127.0.0.1 —
+// not any LAN IP — so connecting via a LAN IP fails cert validation even
+// once the CA itself is trusted. Re-run `adb reverse` after every reconnect
+// (it doesn't persist across USB disconnects/device reboots).
+const BASE_URL = __DEV__
+  ? `https://localhost:50757/api/v1`
   : `https://helpdesk.hajery.com:4477/api/v1`;
  
 /*  const BASE_URL = __DEV__

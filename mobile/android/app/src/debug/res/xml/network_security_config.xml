@@ -1,9 +1,14 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-  Debug-only network security config. Trusts user-installed CAs (in addition
-  to the system trust store) so the app can talk to the ASP.NET Core dev
-  HTTPS certificate on a physical Android device during local development,
-  once that cert has been manually installed on the device as a user CA.
+  Debug-only network security config. Trusts the bundled ASP.NET Core dev
+  HTTPS certificate (res/raw/devcert.pem, exported via "dotnet dev-certs
+  https", export-path devcert.cer, format Pem) directly, so a physical
+  Android device can talk to a locally-run dev backend without needing the
+  cert manually installed as a device-wide trusted CA — that installer flow
+  proved unreliable on Samsung/OneUI (misroutes into a "private key required"
+  client-cert flow). Bundling it as an app resource sidesteps that entirely.
+  Also still trusts user-installed CAs as a fallback, in case that's useful
+  for some other tool (e.g. a debugging proxy) later.
 
   This file lives under src/debug/ and is merged only into debug builds —
   release builds use the default Android trust behavior (system CAs only).
@@ -13,6 +18,7 @@
         <trust-anchors>
             <certificates src="system" />
             <certificates src="user" />
+            <certificates src="@raw/devcert" />
         </trust-anchors>
     </base-config>
 </network-security-config>

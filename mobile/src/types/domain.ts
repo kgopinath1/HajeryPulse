@@ -214,7 +214,7 @@ export interface FBSummary {
 
 export interface FBAggregatorRow { key: string; label: string; kwd: number; pct: number; color: string; }
 export interface FBChannelMix {
-  channelCode: string;
+  channelCode: string | null;
   channelName: string;
   kwd: number;
   pct: number;

@@ -140,8 +140,8 @@ export function FBScreen(): React.JSX.Element {
 
 
   const showNoData = !loading && !hasData;
-  const getChannelColor = (code: string) => {
-  switch (code.toLowerCase()) {
+  const getChannelColor = (code: string | null | undefined) => {
+  switch ((code ?? '').toLowerCase()) {
     case 'dinein':
       return theme.colors.pink;
 
