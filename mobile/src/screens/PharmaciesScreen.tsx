@@ -783,7 +783,7 @@ const getTrendLabels = (period: string, length: number): string[] => {
               <View style={styles.discHeader}>
                 <Text style={styles.discName}>{d.name}</Text>
                 <Text style={styles.discValue}>
-                  -{fmtKwdAsIs(d.discountKwd)} <Text style={styles.discPct}>({fmtPct(d.ratePct)})</Text>
+                  {fmtKwdAsIs(d.discountKwd)} <Text style={styles.discPct}>({fmtPct(d.ratePct)})</Text>
                 </Text>
               </View>
               <View style={styles.discBarBg}>
