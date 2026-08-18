@@ -693,7 +693,7 @@ export function FBScreen(): React.JSX.Element {
                           title={` ${o.name}`}
                           subtitle={brand?.name}
                           amount={fmtKwdAsIs(o.amtKwd)}
-                          delta={{ label: fmtYoy(o.yoyPct), tone: o.yoyPct >= 0 ? 'green' : 'red' }}
+                          delta={{ label: fmtYoy(o.GrowthPct), tone: o.GrowthType === 'positive' ? 'green' : 'red' }}
                         />
                       );
                     })

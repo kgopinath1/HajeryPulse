@@ -196,6 +196,8 @@ export interface FBOutlet {
   brandId: string;
   amtKwd: number;
   yoyPct: number;
+  GrowthPct: number;
+  GrowthType: string;
 }
 
 export interface FBSummary {
