@@ -8,6 +8,7 @@ interface Props {
   primary: number[];
   secondary?: number[];
   labels?: string[]; // ✅ months (Jan, Feb, etc.)
+  /** Fixed width override. Omit to fill the parent's available width (responsive). */
   width?: number;
   height?: number;
   primaryColor?: string;
@@ -18,22 +19,43 @@ export function MultiSparkline({
   primary,
   secondary = [],
   labels = [],
-  width = 330,
+  width,
   height = 100,
   primaryColor = theme.colors.goldSoft,
   secondaryColor = theme.colors.blue,
 }: Props) {
 
   const [activeIndex, setActiveIndex] = useState<number | null>(null);
+  const [containerWidth, setContainerWidth] = useState(0);
 
-  if (!primary.length) return <Svg width={width} height={height} />;
+  const onLayout = (e: { nativeEvent: { layout: { width: number } } }) =>
+    setContainerWidth(e.nativeEvent.layout.width);
+
+  // Explicit `width` still wins when a caller wants a fixed size; otherwise
+  // fill whatever space the parent card gives us, so the chart matches the
+  // card's actual width on both phone and tablet instead of a fixed 330px.
+  const chartWidth = width ?? containerWidth;
+
+  if (!primary.length) {
+    return (
+      <View onLayout={onLayout} style={{ width: '100%' }}>
+        {chartWidth > 0 && <Svg width={chartWidth} height={height} />}
+      </View>
+    );
+  }
+
+  if (chartWidth === 0) {
+    return <View onLayout={onLayout} style={{ width: '100%', height }} />;
+  }
+
+  const w = chartWidth;
 
   const allValues = [...primary, ...secondary];
   const min = Math.min(...allValues);
   const max = Math.max(...allValues);
   const range = max - min || 1;
 
-  const stepX = width / (primary.length - 1 || 1);
+  const stepX = w / (primary.length - 1 || 1);
 
   const getPoint = (value: number, i: number) => {
     const x = i * stepX;
@@ -49,7 +71,7 @@ export function MultiSparkline({
 
   const primaryPath = buildPath(primaryPts);
   const secondaryPath = buildPath(secondaryPts);
-  const areaPath = `${primaryPath} L${width},${height} L0,${height} Z`;
+  const areaPath = `${primaryPath} L${w},${height} L0,${height} Z`;
 
   // ✅ touch handler
   const panResponder = PanResponder.create({
@@ -63,9 +85,9 @@ export function MultiSparkline({
   });
 
   return (
-    <View {...panResponder.panHandlers}>
+    <View onLayout={onLayout} style={{ width: '100%' }} {...panResponder.panHandlers}>
 
-      <Svg width={width} height={height}>
+      <Svg width={w} height={height}>
 
         {/* area */}
         <Path d={areaPath} fill={primaryColor} fillOpacity={0.08} />
