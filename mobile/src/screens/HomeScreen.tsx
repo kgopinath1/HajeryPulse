@@ -21,7 +21,6 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
-import Ionicons from 'react-native-vector-icons/Ionicons';
 
 import { theme } from '@theme/index';
 import { SectionTitle } from '@components/SectionTitle';
@@ -151,18 +150,6 @@ const pharmacyId = 'all';
             <Text style={styles.greetingSmall}>{greeting()}</Text>
             <Text style={styles.greetingName}>{displayName}</Text>
           </View>
-
-          <TouchableOpacity
-            style={styles.bellButton}
-            // TODO: navigate to a notifications screen once one exists
-            onPress={() => {}}
-          >
-            <Ionicons name="notifications-outline" size={18} color={theme.colors.text0} />
-            {/* TODO: badge count is a placeholder */}
-            <View style={styles.bellBadge}>
-              <Text style={styles.bellBadgeText}>7</Text>
-            </View>
-          </TouchableOpacity>
         </View>
 
         {/* Date */}
@@ -237,19 +224,6 @@ const styles = StyleSheet.create({
   avatarText: { fontSize: 16, fontWeight: '700', color: theme.colors.bg0 },
   greetingSmall: { fontSize: 12, color: theme.colors.text2 },
   greetingName: { fontSize: 17, fontWeight: '700', color: theme.colors.text0, marginTop: 1 },
-  bellButton: {
-    width: 38, height: 38, borderRadius: theme.radius.lg,
-    backgroundColor: 'rgba(255,255,255,0.06)',
-    alignItems: 'center', justifyContent: 'center',
-  },
-  bellBadge: {
-    position: 'absolute', top: -4, right: -4,
-    minWidth: 16, height: 16, borderRadius: 8,
-    backgroundColor: theme.colors.pink,
-    alignItems: 'center', justifyContent: 'center',
-    paddingHorizontal: 3,
-  },
-  bellBadgeText: { fontSize: 9, fontWeight: '700', color: theme.colors.text0 },
 
   cardStack: { gap: 10, marginTop: 4, marginBottom: 14 },
 });

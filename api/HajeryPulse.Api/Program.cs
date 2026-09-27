@@ -8,10 +8,13 @@ using Microsoft.Data.SqlClient;
 using Microsoft.Identity.Web;
 using Serilog;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using System.Security.Cryptography;
+using System.Text;
 
 
 
 var builder = WebApplication.CreateBuilder(args);
+DecryptProtectedSecrets(builder.Configuration);
 builder.Services.AddLogging();
 var clientId = builder.Configuration["EntraId:ClientId"];
 var audienceUri = builder.Configuration["EntraId:Audience"];
@@ -116,3 +119,28 @@ app.MapHealthChecks("/health");
 app.MapControllers();
 
 app.Run();
+
+// Reads DPAPI-protected secrets (set as IIS Application Pool environment
+// variables under a "*_Encrypted" name, LocalMachine-scoped) and injects the
+// decrypted plaintext back into configuration under the key the rest of the
+// app already reads. No-ops if the encrypted key isn't present, so local dev
+// (appsettings.Development.json / user-secrets) is unaffected.
+static void DecryptProtectedSecrets(ConfigurationManager config)
+{
+    var entropy = Encoding.UTF8.GetBytes("HajeryPulse");
+    var overrides = new Dictionary<string, string?>();
+
+    void Decrypt(string encryptedKey, string plainKey)
+    {
+        var cipherBase64 = config[encryptedKey];
+        if (string.IsNullOrEmpty(cipherBase64)) return;
+        var plain = ProtectedData.Unprotect(
+            Convert.FromBase64String(cipherBase64), entropy, DataProtectionScope.LocalMachine);
+        overrides[plainKey] = Encoding.UTF8.GetString(plain);
+    }
+
+    Decrypt("ConnectionStrings:ReportingDb_Encrypted", "ConnectionStrings:ReportingDb");
+    Decrypt("DeviceControl:AdminApiKey_Encrypted", "DeviceControl:AdminApiKey");
+
+    if (overrides.Count > 0) config.AddInMemoryCollection(overrides);
+}
