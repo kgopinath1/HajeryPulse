@@ -566,7 +566,7 @@ export function FBScreen(): React.JSX.Element {
   ))}
 </View>
 
-    <Text
+    {/* <Text
       style={{
         color: theme.colors.text2,
         fontSize: 11,
@@ -575,7 +575,7 @@ export function FBScreen(): React.JSX.Element {
       }}
     >
       These values below include service charge and tips.
-    </Text>
+    </Text> */}
 
     {/* Channel Values */}
     <View>

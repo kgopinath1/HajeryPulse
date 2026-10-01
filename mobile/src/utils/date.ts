@@ -1,4 +1,4 @@
-import { format, parseISO, subDays } from 'date-fns';
+import { format, parseISO, subDays, differenceInCalendarDays } from 'date-fns';
 
 /** "Wed, 22 Apr 2026" */
 export function fmtAsOnDate(iso: string): string {
@@ -12,10 +12,7 @@ export function defaultAsOfDate(): string {
 
 /** Tag string for a date relative to "today": Day -1 / Day -2 / Live / etc. */
 export function dayTag(iso: string): string {
-  const today = new Date();
-  const target = parseISO(iso);
-  const diffMs = today.getTime() - target.getTime();
-  const days = Math.round(diffMs / (1000 * 60 * 60 * 24));
+  const days = differenceInCalendarDays(new Date(), parseISO(iso));
   if (days <= 0) return 'Live';
   if (days === 1) return 'Day −1';
   return `Day −${days}`;
