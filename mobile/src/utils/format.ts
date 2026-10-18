@@ -3,7 +3,12 @@
  * (no pre-scaling by the backend) — these formatters handle abbreviation internally.
  */
 
-/** 1234500 → "KWD 1.23M" ; 742000 → "KWD 742K" ; 3.245 → "KWD 3" */
+/** 2500 → "2.5" ; 742000 → "742" — one decimal, trailing ".0" dropped */
+function fmtThousands(value: number): string {
+  return String(Number((value / 1_000).toFixed(1)));
+}
+
+/** 1234500 → "KWD 1.23M" ; 2500 → "KWD 2.5K" ; 742000 → "KWD 742K" ; 3.245 → "KWD 3" */
 export function fmtKwd(value: number): string {
   if (value == null || isNaN(value)) return '—';
   const abs = Math.abs(value);
@@ -12,7 +17,7 @@ export function fmtKwd(value: number): string {
     return `KWD ${(value / 1_000_000).toFixed(2)}M`;
   }
   if (abs >= 1_000) {
-    return `KWD ${(value / 1_000).toFixed(0)}K`;
+    return `KWD ${fmtThousands(value)}K`;
   }
   return `KWD ${Math.round(value)}`;
 }
@@ -29,7 +34,7 @@ export function fmtKwdSmallVal(value: number): string {
 
   // ✅ Thousands
   if (abs >= 1_000) {
-    return `KWD ${(value / 1_000).toFixed(0)}K`;
+    return `KWD ${fmtThousands(value)}K`;
   }
 
   // ✅ Small values (< 1K) — show with decimals for precision

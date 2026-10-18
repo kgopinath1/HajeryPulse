@@ -495,9 +495,7 @@ export function FBScreen(): React.JSX.Element {
 
 
            /*** Channel Mix */
-<Text style={styles.globalNote}>
-  The below values include service charge and tips.
-</Text>
+
 
 <SectionTitle title="Channel Mix" />
 
@@ -566,16 +564,7 @@ export function FBScreen(): React.JSX.Element {
   ))}
 </View>
 
-    {/* <Text
-      style={{
-        color: theme.colors.text2,
-        fontSize: 11,
-        marginTop: 14,
-        marginBottom: 10,
-      }}
-    >
-      These values below include service charge and tips.
-    </Text> */}
+ 
 
     {/* Channel Values */}
     <View>
