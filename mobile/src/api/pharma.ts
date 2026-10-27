@@ -24,8 +24,8 @@ export const pharmaApi = {
   payments: (asOfDate: string, pharmacyId: string, period: 'day' | 'week' | 'month' | 'ytd' = 'week') =>
     get<PharmaPaymentRow[]>('/pharma/payments', { asOfDate, pharmacyId, period }),
 
-  categories: (asOfDate: string, pharmacyId: string, limit = 10,  period: 'day' | 'week' | 'month' | 'ytd' = 'week') =>
-    get<PharmaCategoryRow[]>('/pharma/categories', { asOfDate, pharmacyId, limit,period }),
+  categories: (asOfDate: string, pharmacyId: string, period: 'day' | 'week' | 'month' | 'ytd' = 'week') =>
+    get<PharmaCategoryRow[]>('/pharma/categories', { asOfDate, pharmacyId, period }),
 
   rxOtcMix: (asOfDate: string, pharmacyId: string, period: 'day' | 'week' | 'month' | 'ytd' = 'week') =>
     get<PharmaRxOtcMix>('/pharma/rx-otc-mix', { asOfDate, pharmacyId, period }),

@@ -54,8 +54,8 @@ public async Task<ActionResult<List<PharmaChannelDto>>> GetChannels(
         => Ok(await _service.GetPayments(asOfDate, pharmacyId, period));
 
     [HttpGet("categories")]
-    public async Task<ActionResult<IEnumerable<PharmaCategoryDto>>> GetCategories([FromQuery] string asOfDate, [FromQuery] string pharmacyId = "all", [FromQuery] int limit = 10,[FromQuery] string period = "week")
-        => Ok(await _service.GetCategories(asOfDate, pharmacyId, limit,period));
+    public async Task<ActionResult<IEnumerable<PharmaCategoryDto>>> GetCategories([FromQuery] string asOfDate, [FromQuery] string pharmacyId = "all", [FromQuery] string period = "week")
+        => Ok(await _service.GetCategories(asOfDate, pharmacyId, period));
 
     [HttpGet("rx-otc-mix")]
     public async Task<ActionResult<PharmaRxOtcMixDto>> GetRxMix([FromQuery] string asOfDate, [FromQuery] string pharmacyId = "all", [FromQuery] string period = "week")

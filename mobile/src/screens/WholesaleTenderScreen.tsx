@@ -24,9 +24,10 @@ import { Row } from '@components/Row';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import LinearGradient from 'react-native-linear-gradient';
 import { NoDataCard } from '@components/NoDataCard';
+import { BreakdownTotal } from '@components/BreakdownTotal';
 import { InfoToolTip } from '@components/InfoToolTip';
 import { salesApi } from '@api/sales';
-import { defaultAsOfDate } from '@utils/date';
+import { defaultAsOfDate, revenuePeriodCaption } from '@utils/date';
 import { getTrendLabels, getPeriodLabel, btLabel } from '@utils/labels';
 import { MultiSparkline } from '@components/MultiSparkline';
 import { fmtKwd, fmtPct, fmtInt, fmtYoy, fmtYoyPp, fmtPpNumber, fmtKwdAsIs } from '@utils/format';
@@ -45,6 +46,7 @@ export function WholesaleTenderScreen(): React.JSX.Element {
   const [quality, setQuality] = useState<SalesQuality | null>(null);
   const [org, setOrg] = useState<OrgNode | null>(null);
   const [orgPath, setOrgPath] = useState<string[]>(['root']);
+  const [orgNames, setOrgNames] = useState<Record<string, string>>({});
   const [brands, setBrands] = useState<TopBrand[]>([]);
   const [customers, setCustomers] = useState<TopCustomer[]>([]);
   const [refreshing, setRefreshing] = useState(false);
@@ -74,8 +76,41 @@ export function WholesaleTenderScreen(): React.JSX.Element {
 
   const onRefresh = () => { setRefreshing(true); load(); };
   const periodLabel = getPeriodLabel(period);
-  const onDrill = (key: string) => setOrgPath(prev => [...prev, key]);
+  const onDrill = (key: string, name: string) => {
+    setOrgNames(prev => ({ ...prev, [key]: name }));
+    setOrgPath(prev => (prev[prev.length - 1] === key ? prev : [...prev, key]));
+  };
   const onUpToBreadcrumb = (i: number) => setOrgPath(prev => prev.slice(0, i + 1));
+
+  // Levels expanded so far, in drill order: orgPath ['root'] lists business
+  // units, ['root', BU] lists divisions, and so on.
+  const ORG_LEVEL_TITLES = ['Business Unit', 'Division', 'Business Type', 'Supplier'];
+  // The units drilled through so far, e.g. at the Supplier list:
+  // [HEALTHCARE (Business Unit), Pharmaceutical Division (Division), PA50 (Business Type)]
+  const orgAncestors = orgPath.slice(1).map((key, i) => ({
+    key,
+    level: ORG_LEVEL_TITLES[i] ?? '',
+    name: orgNames[key] ?? key,
+  }));
+
+  // What Top Brands / Top Customers are filtered to: the org unit drilled
+  // into (down to business type), else the whole group (no label).
+  const topScopeName = orgAncestors[orgAncestors.length - 1]?.name;
+  const topScopeLabel =
+    topScopeName && topScopeName.length > 26 ? `${topScopeName.slice(0, 25)}…` : topScopeName;
+
+  // Plural label for the rows in the org drill-down (BusinessUnit → Division →
+  // BusinessType → Supplier), used for the eyebrow and the total's count.
+  const orgLevelLabel = (level: string | undefined, count: number): string => {
+    const names: Record<string, [string, string]> = {
+      BusinessUnit: ['BUSINESS UNIT', 'BUSINESS UNITS'],
+      Division:     ['DIVISION', 'DIVISIONS'],
+      BusinessType: ['BUSINESS TYPE', 'BUSINESS TYPES'],
+      Supplier:     ['SUPPLIER', 'SUPPLIERS'],
+    };
+    const pair = names[level ?? ''] ?? ['UNIT', 'UNITS'];
+    return count === 1 ? pair[0] : pair[1];
+  };
 
 
   const hasData =
@@ -184,7 +219,7 @@ const showNoData = !loading && !hasData;
 <SectionTitle title="Revenue" />
 {summary ? (
   <Card>
-    <Text style={styles.eyebrow}>REVENUE · {period.toUpperCase()}  TO DATE</Text>
+    <Text style={styles.eyebrow}>REVENUE · {revenuePeriodCaption(period, asOfDate)}</Text>
     <Text style={styles.heroValue}>{fmtKwd(summary.revenue.kwd)}</Text>
     <View style={{ marginTop: 4, flexDirection: 'row' }}>
       <Chip label={fmtYoy(summary.revenue.wow, summary.revenue.growthType)} tone={summary.revenue.wow >= 0 ? 'green' : 'red'} />
@@ -194,6 +229,7 @@ const showNoData = !loading && !hasData;
       <View style={{ marginTop: 12 }}>
         <MultiSparkline
           primary={summary.spark ?? []}
+          valueFormat="kwd"
           secondary={summary.sparkLY ?? []}
           primaryColor={theme.colors.goldSoft}
           secondaryColor={theme.colors.blue}
@@ -211,7 +247,7 @@ const showNoData = !loading && !hasData;
           </View>
         </View>
         <Text style={{ color: theme.colors.text2 }}>
-          {period === 'week' && 'Last 7 days'}
+          {period === 'week' && 'Week to date'}
           {period === 'month' && 'Weekly trend'}
           {period === 'ytd' && 'Monthly trend'}
         </Text>
@@ -235,14 +271,6 @@ const showNoData = !loading && !hasData;
       value: `${summary.kpis.avgOrderValuePct?.toFixed(1)}%`,
       positive: summary.kpis.avgOrderValuePct >= 0
     }} />
-    <KpiTile label="Active tenders" value={String(summary.kpis.activeTenders)} chip={{
-      label: `${fmtKwd(summary.kpis.pipelineAmount)} pipeline`,
-      tone: 'blue'
-    }}
-      info="As of the last data refresh — figures can change. Independent of the selected period; always shown as of yesterday's date."
-    />
-    <KpiTile label="Avg. tender value" value={fmtKwd(summary.kpis.avgTenderValueKwd)}
-      delta={{ value: `${summary.kpis.avgTenderValuePct?.toFixed(1) || 0}%`, positive: summary.kpis.avgTenderValuePct >= 0 }} />
   </View>
 ) : (
   <Card>
@@ -363,12 +391,12 @@ const showNoData = !loading && !hasData;
        <SectionTitle title="Sales Quality" rightLabel={btLabel(bt)} />
 {quality ? (
   <Card>
-    <Text style={styles.eyebrow}>GROSS → NET</Text>
+    <Text style={styles.eyebrow}>SALES & RETURNS</Text>
     <View style={styles.marginHeaderRow}>
       <View>
         <Text style={styles.heroValue}>{fmtKwd(quality.netKwd)}</Text>
         <Text style={styles.subtle}>
-          {fmtPct(quality.netPct)} of gross retained
+          {fmtPct(quality.netPct, 2)} of gross retained
         </Text>
       </View>
      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
@@ -410,7 +438,7 @@ const showNoData = !loading && !hasData;
 
     <View style={{ marginTop: 14, flexDirection: 'row', gap: 8 }}>
       <Chip
-        label={`Returns ${fmtPct(quality.returnsPct)} of Net`}
+        label={`Returns ${fmtPct(quality.returnsPct, 2)} of Net`}
         tone={quality.returnsPct > 0 ? 'red' : 'green'}
       />
       <Chip
@@ -429,31 +457,48 @@ const showNoData = !loading && !hasData;
 <SectionTitle title="By Org Structure" rightLabel={btLabel(bt)} />
 {org ? (
   <Card>
-    <Text style={styles.eyebrow}>{org.level?.toUpperCase()}</Text>
-
-    <View style={styles.breadcrumbWrap}>
-      {orgPath.map((k, i) => (
-        <Text
-          key={k}
-          onPress={() => onUpToBreadcrumb(i)}
-          style={[styles.crumb, i === orgPath.length - 1 && styles.crumbCurrent]}
-        >
-          {k === 'root' ? 'Group' : k}
-          {i < orgPath.length - 1 ? ' › ' : ''}
+    {/* Hidden at the top level. Once drilled in:
+        1) expanded levels, display only — "Business Unit › Division › Business Type"
+        2) code breadcrumb, tap a code to go back to that level — "Group › HC00 › PD100" */}
+    {orgAncestors.length > 0 && (
+      <>
+        <Text style={styles.eyebrow}>
+          {orgAncestors.map(a => a.level).join(' › ')}
         </Text>
-      ))}
-    </View>
+
+        <View style={styles.breadcrumbWrap}>
+          {orgPath.map((k, i) => (
+            <Text
+              key={k}
+              onPress={() => onUpToBreadcrumb(i)}
+              style={[styles.crumb, i === orgPath.length - 1 && styles.crumbCurrent]}
+            >
+              {k === 'root' ? 'Group' : k}
+              {i < orgPath.length - 1 ? ' › ' : ''}
+            </Text>
+          ))}
+        </View>
+      </>
+    )}
 
     {org.children && org.children.length > 0 ? (
-      org.children.map((child) => {
+      <>
+      <BreakdownTotal
+        amount={org.children.reduce((s, c) => s + (c.total ?? 0), 0)}
+        meta={`${org.children.length} ${orgLevelLabel(org.level, org.children.length)}`}
+      />
+      {org.children.map((child) => {
         const total = child.total;
         const share = child.sharePct;
+        // API sends HasChildren as 0/1 (int); rendering `0 && …` would put a bare
+        // "0" outside <Text>, so always convert to a real boolean first.
+        const canDrill = !!child.hasChildren;
 
         return (
           <TouchableOpacity
             key={child.key}
-            activeOpacity={child.hasChildren ? 0.7 : 1}
-            onPress={() => child.hasChildren && onDrill(child.key)}
+            activeOpacity={canDrill ? 0.7 : 1}
+            onPress={() => { if (canDrill) onDrill(child.key, child.name); }}
             style={styles.rowCard}
           >
             <View style={styles.rowTop}>
@@ -462,7 +507,7 @@ const showNoData = !loading && !hasData;
                   <Text style={styles.codeText}>{child.key}</Text>
                 </View>
                 <Text style={styles.title} numberOfLines={1}>{child.name}</Text>
-                {child.hasChildren && <Text style={styles.chevron}>›</Text>}
+                {canDrill && <Text style={styles.chevron}>›</Text>}
               </View>
               <Text style={styles.amount} numberOfLines={1}>{fmtKwdAsIs(total)}</Text>
             </View>
@@ -484,7 +529,8 @@ const showNoData = !loading && !hasData;
             </View>
           </TouchableOpacity>
         );
-      })
+      })}
+      </>
     ) : (
       <Text style={styles.emptyText}>No org breakdown available for this level</Text>
     )}
@@ -497,7 +543,7 @@ const showNoData = !loading && !hasData;
 
 
        {/* Top 10 Brands */}
-<SectionTitle title="Top 10 Brands" />
+<SectionTitle title="Top 10 Brands" rightLabel={topScopeLabel} />
 <Card>
   {brands.length > 0 ? (
     brands.map(b => (
@@ -516,7 +562,7 @@ const showNoData = !loading && !hasData;
 </Card>
 
        {/* Top 10 Customers */}
-<SectionTitle title="Top 10 Customers" />
+<SectionTitle title="Top 10 Customers" rightLabel={topScopeLabel} />
 <Card>
   {customers.length > 0 ? (
     customers.map(c => (

@@ -17,3 +17,20 @@ export function dayTag(iso: string): string {
   if (days === 1) return 'Day −1';
   return `Day −${days}`;
 }
+
+/**
+ * Caption after "REVENUE ·" on the revenue cards:
+ * day → the selected date ("22 APR 2026"), ytd → "YEAR TO DATE",
+ * week/month → "WEEK TO DATE" / "MONTH TO DATE".
+ */
+export function revenuePeriodCaption(period: string, asOfDate: string): string {
+  switch (period) {
+    case 'day':
+      return format(parseISO(asOfDate), 'dd MMM yyyy').toUpperCase();
+    case 'ytd':
+    case 'year':
+      return 'YEAR TO DATE';
+    default:
+      return `${period.toUpperCase()} TO DATE`;
+  }
+}

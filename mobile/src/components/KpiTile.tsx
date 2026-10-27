@@ -21,10 +21,10 @@ export function KpiTile({ label, value, delta, chip, subtitle, valueColor, info 
     <View style={styles.tile}>
       <View style={styles.labelRow}>
         {typeof label === 'string' ? <Text style={styles.label}>{label}</Text> : label}
-        {info && <InfoToolTip text={info} style={styles.infoIcon} />}
+        {!!info && <InfoToolTip text={info} style={styles.infoIcon} />}
       </View>
       <Text style={[styles.value, { color: valueColor || theme.colors.text0 }]}>{value}</Text>
-      {subtitle && <Text style={styles.subtitle}>{subtitle}</Text>}
+      {!!subtitle && <Text style={styles.subtitle}>{subtitle}</Text>}
       {delta && (
         <View style={[styles.deltaBadge, { backgroundColor: delta.positive ? 'rgba(95,209,122,0.16)' : 'rgba(255,92,108,0.16)' }]}> 
           <Text style={[styles.deltaText, { color: delta.positive ? theme.colors.green : theme.colors.red }]}>

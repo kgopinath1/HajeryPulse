@@ -12,7 +12,7 @@ public interface IPharmaService
     Task<PharmaSalesQualityDto>             GetQuality(string asOfDate, string pharmacyId, string period = "week");
     Task<List<PharmaChannelDto>>                GetChannels(string asOfDate, string pharmacyId, string period = "week");
     Task<IEnumerable<PharmaPaymentDto>>     GetPayments(string asOfDate, string pharmacyId, string period = "week");
-    Task<IEnumerable<PharmaCategoryDto>>    GetCategories(string asOfDate, string pharmacyId, int limit,string period = "week");
+    Task<IEnumerable<PharmaCategoryDto>>    GetCategories(string asOfDate, string pharmacyId, string period = "week");
     Task<PharmaRxOtcMixDto>                 GetRxOtcMix(string asOfDate, string pharmacyId, string period = "week");
     Task<IEnumerable<PharmaDiscountDto>>    GetDiscountLeaderboard(string asOfDate, int limit,string period = "week");
     Task<IEnumerable<PharmacyDto>>          GetTopPharmacies(string asOfDate, int limit,string period = "week");
@@ -50,8 +50,8 @@ public Task<List<PharmaChannelDto>> GetChannels(
     public async Task<IEnumerable<PharmaPaymentDto>> GetPayments(string d, string id, string period = "week")
         => (await _repo.GetPayments(d, id, period)) ?? Enumerable.Empty<PharmaPaymentDto>();
 
-    public async Task<IEnumerable<PharmaCategoryDto>> GetCategories(string d, string id, int limit,string period = "week")
-        => (await _repo.GetCategories(d, id, limit, period)) ?? Enumerable.Empty<PharmaCategoryDto>();
+    public async Task<IEnumerable<PharmaCategoryDto>> GetCategories(string d, string id, string period = "week")
+        => (await _repo.GetCategories(d, id, period)) ?? Enumerable.Empty<PharmaCategoryDto>();
 
     public Task<PharmaRxOtcMixDto> GetRxOtcMix(string d, string id, string period = "week")
         => _repo.GetRxOtcMix(d, id, period);

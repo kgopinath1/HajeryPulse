@@ -25,8 +25,9 @@ import { Row } from '@components/Row';
 import { AsOnDateModal } from '@components/AsOnDateModal';
 import { MultiSparkline } from '@components/MultiSparkline';
 import { NoDataCard } from '@components/NoDataCard';
+import { BreakdownTotal } from '@components/BreakdownTotal';
 import { fbApi } from '@api/fb';
-import { defaultAsOfDate } from '@utils/date';
+import { defaultAsOfDate, revenuePeriodCaption } from '@utils/date';
 import { fmtKwd, fmtPct, fmtInt, fmtYoy, fmtKwdSmallVal,fmtKwdAsIs } from '@utils/format';
 import { getPeriodLabel, getGrowthCaption } from '@utils/labels';
 import {
@@ -276,7 +277,7 @@ export function FBScreen(): React.JSX.Element {
             {summary && (summary.revenueKwd ?? 0) > 0 ? (
               <Card>
                 <Text style={styles.eyebrow}>
-                  REVENUE · {period.toUpperCase()} TO DATE
+                  REVENUE · {revenuePeriodCaption(period, asOfDate)}
                 </Text>
 
                 <Text style={styles.hero}>{fmtKwd(summary.revenueKwd)}</Text>
@@ -290,6 +291,7 @@ export function FBScreen(): React.JSX.Element {
                   <View style={{ marginTop: 12 }}>
                     <MultiSparkline
                       primary={trend.current ?? []}
+                      valueFormat="kwd"
                       secondary={trend.previous ?? []}
                       primaryColor={theme.colors.pink}
                       secondaryColor={theme.colors.blue}
@@ -327,7 +329,7 @@ export function FBScreen(): React.JSX.Element {
                       </View>
                     </View>
                     <Text style={{ color: theme.colors.text2 }}>
-                      {period === 'week' && 'Last 7 days'}
+                      {period === 'week' && 'Week to date'}
                       {period === 'month' && 'Weekly trend'}
                       {period === 'ytd' && 'Monthly trend'}
                     </Text>
@@ -344,7 +346,7 @@ export function FBScreen(): React.JSX.Element {
 
             {summary && (summary.covers ?? 0) > 0 ? (
               <View style={styles.kpiGrid}>
-                <KpiTile label="Transactions" value={fmtInt(summary.covers)} delta={{ value: `${summary.coversdelta?.toFixed(1) || 0}%`, positive: summary.coversdelta >= 0 }} />
+                <KpiTile label="Transactions" value={fmtInt(summary.covers)} delta={{ value: `${summary.coversDelta?.toFixed(1) || 0}%`, positive: summary.coversDelta >= 0 }} />
                 <KpiTile label="Check Avg" value={fmtKwdSmallVal(summary.ticketKwd)} delta={{ value: `${summary.ticketKwdDelta?.toFixed(1) || 0}%`, positive: summary.ticketKwdDelta >= 0 }} />
 
                 <KpiTile
@@ -379,7 +381,12 @@ export function FBScreen(): React.JSX.Element {
             />
             <Card>
               {brandSummary.length > 0 && brandSummary.some(x => (x.amtKwd ?? 0) > 0) ? (
-                brandSummary.map(b => {
+                <>
+                <BreakdownTotal
+                  amount={brandSummary.reduce((s, x) => s + x.amtKwd, 0)}
+                  segments={brandSummary.map(b => ({ value: b.amtKwd, color: b.color }))}
+                />
+                {brandSummary.map(b => {
                   const total = brandSummary.reduce((s, x) => s + x.amtKwd, 0);
                   const share = total > 0 ? (b.amtKwd / total) * 100 : 0;
 
@@ -387,7 +394,7 @@ export function FBScreen(): React.JSX.Element {
                     <View key={b.id} style={styles.brandRow}>
                       <View style={[styles.brandSwatch, { backgroundColor: b.color }]} />
                       <Text style={[styles.brandName, { flex: 1 }]}>{b.name}</Text>
-                      <Text style={styles.brandValue}>{fmtKwd(b.amtKwd)}</Text>
+                      <Text style={styles.brandValue}>{fmtKwdAsIs(b.amtKwd)}</Text>
                       <Text style={styles.brandShare}>{fmtPct(share)}</Text>
                       <Chip
                         label={fmtYoy(b.growthPct)}
@@ -395,7 +402,8 @@ export function FBScreen(): React.JSX.Element {
                       />
                     </View>
                   );
-                })
+                })}
+                </>
               ) : (
                 <Text style={styles.emptyText}>No brand sales data available</Text>
               )}
@@ -415,7 +423,12 @@ export function FBScreen(): React.JSX.Element {
             <Text style={styles.helperText}>Tap a brand to expand its outlets. Outlet contribution shown as % of brand total.</Text>
             <Card>
               {brandSummary.length > 0 && brandSummary.some(x => (x.amtKwd ?? 0) > 0) ? (
-                brandSummary.map(b => {
+                <>
+                <BreakdownTotal
+                  amount={brandSummary.reduce((s, x) => s + x.amtKwd, 0)}
+                  meta={`${outlets.length} OUTLETS`}
+                />
+                {brandSummary.map(b => {
                   const isOpen = expanded.has(b.id);
                   const totalSales = brandSummary.reduce((s, x) => s + x.amtKwd, 0);
                   const brandContribution =
@@ -456,7 +469,7 @@ export function FBScreen(): React.JSX.Element {
                         </Text>
 
                         <Text style={styles.brandValue}>
-                          {fmtKwd(b.amtKwd)}
+                          {fmtKwdAsIs(b.amtKwd)}
                         </Text>
 
                         <Text style={styles.bdContribution}>
@@ -476,7 +489,7 @@ export function FBScreen(): React.JSX.Element {
                               </Text>
 
                               <Text style={styles.outletAmt}>
-                                {fmtKwd(o.amtKwd)}
+                                {fmtKwdAsIs(o.amtKwd)}
                               </Text>
 
                               <Text style={styles.outletShare}>
@@ -487,20 +500,25 @@ export function FBScreen(): React.JSX.Element {
                         })}
                     </View>
                   );
-                })
+                })}
+                </>
               ) : (
                 <Text style={styles.emptyText}>No brand-outlet data available</Text>
               )}
             </Card>
 
 
-           /*** Channel Mix */
+           {/* Channel Mix */}
 
 
 <SectionTitle title="Channel Mix" />
 
 {channels.length > 0 ? (
   <Card>
+    <BreakdownTotal
+      amount={channels.reduce((s, c) => s + (c.kwd ?? 0), 0)}
+      meta={`${channels.length} CHANNEL${channels.length > 1 ? 'S' : ''}`}
+    />
     <Text style={styles.eyebrow}>
       REVENUE SPLIT BY CHANNEL
     </Text>
@@ -625,14 +643,24 @@ export function FBScreen(): React.JSX.Element {
             {/* Aggregators */}
             <SectionTitle title="Sales by Aggregator" />
             <Card>
-              {aggrs.length > 0 && aggrs.some(a => (a.kwd ?? 0) > 0) ? aggrs.map(a => (
+              {aggrs.length > 0 && aggrs.some(a => (a.kwd ?? 0) > 0) ? (
+                <>
+                <BreakdownTotal
+                  info="Amounts include service charge and delivery charge."
+                  amount={aggrs.reduce((s, x) => s + (x.kwd ?? 0), 0)}
+                  meta={`${aggrs.length} AGGREGATOR${aggrs.length > 1 ? 'S' : ''}`}
+                  segments={aggrs.map(x => ({ value: x.kwd, color: x.color }))}
+                />
+                {aggrs.map(a => (
                 <View key={a.key} style={styles.payRow}>
                   <View style={[styles.swatch, { backgroundColor: a.color }]} />
                   <Text style={{ flex: 1, color: theme.colors.text0 }}>{a.label}</Text>
                   <Text style={{ fontFamily: theme.fonts.numeric, fontWeight: '700', color: theme.colors.text0 }}>{fmtKwdAsIs(a.kwd)}</Text>
                   <Text style={{ marginLeft: 8, color: theme.colors.text2 }}>{fmtPct(a.pct)}</Text>
                 </View>
-              )) : (
+                ))}
+                </>
+              ) : (
                 <Text style={styles.emptyText}>No aggregator sales for this period</Text>
               )}
             </Card>
@@ -640,13 +668,23 @@ export function FBScreen(): React.JSX.Element {
             {/* Delivery by brand */}
             <SectionTitle title="Delivery Sales by Brand" />
             <Card>
-              {delivery.length > 0 && delivery.some(b => (b.deliveryKwd ?? 0) > 0) ? delivery.map(b => (
+              {delivery.length > 0 && delivery.some(b => (b.deliveryKwd ?? 0) > 0) ? (
+                <>
+                <BreakdownTotal
+                  label="TOTAL DELIVERY SALES"
+                  amount={delivery.reduce((s, x) => s + (x.deliveryKwd ?? 0), 0)}
+                  meta={`${delivery.length} BRAND${delivery.length > 1 ? 'S' : ''}`}
+                  segments={delivery.map(x => ({ value: x.deliveryKwd, color: x.color }))}
+                />
+                {delivery.map(b => (
                 <View key={b.id} style={styles.payRow}>
                   <View style={[styles.swatch, { backgroundColor: b.color }]} />
                   <Text style={{ flex: 1, color: theme.colors.text0 }}>{b.name}</Text>
                   <Text style={{ fontFamily: theme.fonts.numeric, fontWeight: '700', color: theme.colors.text0 }}>{fmtKwdAsIs(b.deliveryKwd)}</Text>
                 </View>
-              )) : (
+                ))}
+                </>
+              ) : (
                 <Text style={styles.emptyText}>No delivery sales for this period</Text>
               )}
             </Card>
@@ -654,14 +692,24 @@ export function FBScreen(): React.JSX.Element {
             {/* Payments */}
             <SectionTitle title="Sales by Payment Type" />
             <Card>
-              {payments.length > 0 && payments.some(p => (p.kwd ?? 0) > 0) ? payments.map(p => (
+              {payments.length > 0 && payments.some(p => (p.kwd ?? 0) > 0) ? (
+                <>
+                <BreakdownTotal
+                  info="Amounts include service charge and delivery charge."
+                  amount={payments.reduce((s, x) => s + (x.kwd ?? 0), 0)}
+                  meta={`${payments.length} TYPE${payments.length > 1 ? 'S' : ''}`}
+                  segments={payments.map(x => ({ value: x.kwd, color: x.color }))}
+                />
+                {payments.map(p => (
                 <View key={p.key} style={styles.payRow}>
                   <View style={[styles.swatch, { backgroundColor: p.color }]} />
                   <Text style={{ flex: 1, color: theme.colors.text0 }}>{p.label}</Text>
                   <Text style={{ fontFamily: theme.fonts.numeric, fontWeight: '700', color: theme.colors.text0 }}>{fmtKwdAsIs(p.kwd)}</Text>
                   <Text style={{ marginLeft: 8, color: theme.colors.text2 }}>{fmtPct(p.pct)}</Text>
                 </View>
-              )) : (
+                ))}
+                </>
+              ) : (
                 <Text style={styles.emptyText}>No payment data for this period</Text>
               )}
             </Card>

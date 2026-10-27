@@ -3,20 +3,20 @@
  *
  * Bucket counts vary by period (matching the stored procedures):
  *   day   -> not used (screens skip rendering the trend for 'day')
- *   week  -> 7 fixed daily labels (Mon..Sun)
+ *   week  -> daily labels from Sunday (week-to-date), sliced to the data length
  *   month -> variable weekly labels (W1..Wn), sized to match actual data length
  *            since a month can span a different number of elapsed weeks
  *   ytd   -> 12 fixed monthly labels (Jan..Dec)
  *
  * @param period - the currently selected period tab
- * @param length - number of data points actually returned (used only for 'month')
+ * @param length - number of data points actually returned (used for 'week' and 'month')
  */
 export type TrendPeriod = 'day' | 'week' | 'month' | 'ytd';
 
 export const getTrendLabels = (period: TrendPeriod | string, length: number): string[] => {
   switch (period) {
     case 'week':
-      return ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+      return ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].slice(0, length || 7);
     case 'month':
       return Array.from({ length }, (_, i) => `W${i + 1}`);
     case 'ytd':

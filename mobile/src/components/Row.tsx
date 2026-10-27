@@ -22,7 +22,7 @@ export function Row({ avatar, title, subtitle, amount, delta }: RowProps): React
       )}
       <View style={styles.body}>
         <Text style={styles.title} numberOfLines={1}>{title}</Text>
-        {subtitle && <Text style={styles.subtitle} numberOfLines={1}>{subtitle}</Text>}
+        {!!subtitle && <Text style={styles.subtitle} numberOfLines={1}>{subtitle}</Text>}
       </View>
       <View style={styles.right}>
         <Text style={styles.amount}>{amount}</Text>

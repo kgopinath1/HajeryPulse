@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { View } from 'react-native';
 import Svg, { Path, Circle, Line } from 'react-native-svg';
 import { theme } from '@theme/index';
+import { fmtKwd, fmtPct } from '@utils/format';
 import { PanResponder, Text } from 'react-native';
 
 interface Props {
@@ -13,6 +14,8 @@ interface Props {
   height?: number;
   primaryColor?: string;
   secondaryColor?: string;
+  /** How the tooltip shows a value: 'percent' (margin charts) or 'kwd' (revenue charts). */
+  valueFormat?: 'percent' | 'kwd';
 }
 
 export function MultiSparkline({
@@ -23,10 +26,15 @@ export function MultiSparkline({
   height = 100,
   primaryColor = theme.colors.goldSoft,
   secondaryColor = theme.colors.blue,
+  valueFormat = 'percent',
 }: Props) {
+
+  const fmtValue = (v: number | undefined) =>
+    v == null ? '—' : valueFormat === 'kwd' ? fmtKwd(v) : fmtPct(v);
 
   const [activeIndex, setActiveIndex] = useState<number | null>(null);
   const [containerWidth, setContainerWidth] = useState(0);
+  const [tooltipWidth, setTooltipWidth] = useState(0);
 
   const onLayout = (e: { nativeEvent: { layout: { width: number } } }) =>
     setContainerWidth(e.nativeEvent.layout.width);
@@ -73,6 +81,18 @@ export function MultiSparkline({
   const secondaryPath = buildPath(secondaryPts);
   const areaPath = `${primaryPath} L${w},${height} L0,${height} Z`;
 
+  // The touched index can outlive the data it was taken from (e.g. a 7-point
+  // week shrinking to 1 point on a Sunday), so ignore it when out of range.
+  const active =
+    activeIndex !== null && activeIndex < primaryPts.length ? activeIndex : null;
+  const activePt = active !== null ? primaryPts[active] : undefined;
+
+  // Centre the tooltip on the touched point, but keep it inside the chart so
+  // the first/last points (x = 0 / x = w) aren't cut off by the screen edge.
+  const tooltipLeft = activePt
+    ? Math.min(Math.max(activePt.x - tooltipWidth / 2, 0), Math.max(w - tooltipWidth, 0))
+    : 0;
+
   // ✅ touch handler
   const panResponder = PanResponder.create({
     onStartShouldSetPanResponder: () => true,
@@ -82,6 +102,9 @@ export function MultiSparkline({
       setActiveIndex(Math.max(0, Math.min(index, primary.length - 1)));
     },
     onPanResponderRelease: () => setActiveIndex(null),
+    // A parent ScrollView can take over the gesture, in which case Release
+    // never fires — clear the highlight here too.
+    onPanResponderTerminate: () => setActiveIndex(null),
   });
 
   return (
@@ -107,12 +130,12 @@ export function MultiSparkline({
         )}
 
         {/* ✅ active indicator */}
-        {activeIndex !== null && (
+        {activePt && (
           <>
             {/* vertical line */}
             <Line
-              x1={primaryPts[activeIndex].x}
-              x2={primaryPts[activeIndex].x}
+              x1={activePt.x}
+              x2={activePt.x}
               y1={0}
               y2={height}
               stroke="#999"
@@ -121,8 +144,8 @@ export function MultiSparkline({
 
             {/* active dot */}
             <Circle
-              cx={primaryPts[activeIndex].x}
-              cy={primaryPts[activeIndex].y}
+              cx={activePt.x}
+              cy={activePt.y}
               r={5}
               fill={primaryColor}
             />
@@ -131,23 +154,25 @@ export function MultiSparkline({
       </Svg>
 
       {/* ✅ tooltip */}
-      {activeIndex !== null && (
+      {activePt && active !== null && (
         <View
+          onLayout={(e) => setTooltipWidth(e.nativeEvent.layout.width)}
           style={{
             position: 'absolute',
             top: -30,
-            left: primaryPts[activeIndex].x - 40,
+            left: tooltipLeft,
+            maxWidth: w,
             backgroundColor: '#111',
             paddingHorizontal: 8,
             paddingVertical: 4,
             borderRadius: 6,
           }}
         >
-         <Text style={{ color: '#fff', fontSize: 12 }}>
-  {labels[activeIndex] || `#${activeIndex}`} |{' '}
-  {primary[activeIndex]?.toFixed(1)}% 
-  {secondary.length > activeIndex && (
-    <> / {secondary[activeIndex]?.toFixed(1)}%</>
+         <Text style={{ color: '#fff', fontSize: 12 }} numberOfLines={1}>
+  {labels[active] || `#${active}`} |{' '}
+  {fmtValue(primary[active])}
+  {secondary.length > active && (
+    <> / {fmtValue(secondary[active])}</>
   )}
 </Text>
 

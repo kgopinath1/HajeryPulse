@@ -231,32 +231,52 @@ GO
 -- ============================================================================
 -- sp_GetPharmacyCategories
 -- ============================================================================
+-- exec app.sp_GetPharmacyCategories '20261022', 'all', 'week'
+-- Returns every category (no TOP limit) so the app's total matches the full sales.
 CREATE OR ALTER PROCEDURE app.sp_GetPharmacyCategories
     @AsOfDate   DATE,
     @PharmacyId NVARCHAR(20) = 'all',
-    @Limit      INT = 10
+    @Period     NVARCHAR(20) = 'week'
 AS
 BEGIN
     SET NOCOUNT ON;
-    DECLARE @asOfKey INT = CONVERT(INT, FORMAT(@AsOfDate, 'yyyyMMdd'));
-    DECLARE @weekStart INT = CONVERT(INT, FORMAT(DATEADD(DAY, -6, @AsOfDate), 'yyyyMMdd'));
+
     DECLARE @phKey INT = app.fn_PharmacyKey(@PharmacyId);
+
+    -- Week starts on Sunday (week-to-date), independent of SET DATEFIRST.
+    DECLARE @daysSinceSunday INT = (DATEPART(WEEKDAY, @AsOfDate) + @@DATEFIRST - 1) % 7;
+    DECLARE @weekStart DATE = DATEADD(DAY, -@daysSinceSunday, @AsOfDate);
+
+    DECLARE @startDate DATE =
+        CASE
+            WHEN @Period = 'day'   THEN @AsOfDate
+            WHEN @Period = 'week'  THEN @weekStart
+            WHEN @Period = 'month' THEN DATEFROMPARTS(YEAR(@AsOfDate), MONTH(@AsOfDate), 1)
+            WHEN @Period = 'ytd'   THEN DATEFROMPARTS(YEAR(@AsOfDate), 1, 1)
+            ELSE @weekStart
+        END;
+
+    DECLARE @startKey INT = CONVERT(INT, CONVERT(VARCHAR(8), @startDate, 112));
+    DECLARE @asOfKey  INT = CONVERT(INT, CONVERT(VARCHAR(8), @AsOfDate, 112));
 
     ;WITH totals AS (
         SELECT SUM(NetKwd) AS TotalNet
-        FROM fact.PharmacySales
-        WHERE DateKey BETWEEN @weekStart AND @asOfKey
+        FROM fact.PharmacySalesCategory
+        WHERE DateKey BETWEEN @startKey AND @asOfKey
           AND (@phKey IS NULL OR PharmacyKey = @phKey)
     )
-    SELECT TOP (@Limit)
+    SELECT
         c.Code  AS [Key],
         c.Label AS Label,
-        SUM(f.NetKwd) / 1000.0 AS Kwd,
-        CASE WHEN totals.TotalNet = 0 THEN 0 ELSE SUM(f.NetKwd) * 100.0 / totals.TotalNet END AS Pct
-    FROM fact.PharmacySales f
+        SUM(f.NetKwd) AS Kwd,
+        CASE
+            WHEN totals.TotalNet = 0 THEN 0
+            ELSE SUM(f.NetKwd) * 100.0 / totals.TotalNet
+        END AS Pct
+    FROM fact.PharmacySalesCategory f
     JOIN ref.Category c ON c.CategoryKey = f.CategoryKey
     CROSS JOIN totals
-    WHERE f.DateKey BETWEEN @weekStart AND @asOfKey
+    WHERE f.DateKey BETWEEN @startKey AND @asOfKey
       AND (@phKey IS NULL OR f.PharmacyKey = @phKey)
     GROUP BY c.Code, c.Label, totals.TotalNet
     ORDER BY Kwd DESC;

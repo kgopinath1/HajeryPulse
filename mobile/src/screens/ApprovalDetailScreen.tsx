@@ -123,7 +123,7 @@ export function ApprovalDetailScreen(): React.JSX.Element {
             <View key={i} style={styles.histRow}>
               <Text style={styles.histDate}>{new Date(e.occurredAt).toLocaleString()}</Text>
               <Text style={styles.histAction}><Text style={{ fontWeight: '600' }}>{e.user}</Text> · {e.action}</Text>
-              {e.comment && <Text style={styles.histComment}>{e.comment}</Text>}
+              {!!e.comment && <Text style={styles.histComment}>{e.comment}</Text>}
             </View>
           ))}
         </Card>

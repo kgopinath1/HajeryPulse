@@ -67,7 +67,8 @@ export interface SalesQuality {
 }
 
 export interface OrgNode {
-  level: 'BusinessUnit' | 'Division' | 'BusinessType' | 'Department';
+  /** Level of the children returned (what the list shows). */
+  level: 'BusinessUnit' | 'Division' | 'BusinessType' | 'Supplier';
   label: string;
   parentKey: string;
   children: OrgChild[];
@@ -81,7 +82,8 @@ export interface OrgChild {
   total: number;
   sharePct: number;
   yoyPct: number;
-  hasChildren: boolean;
+  /** Sent by the API as 0 / 1 (int), not true / false — convert with !! before rendering. */
+  hasChildren: boolean | number;
   growthType: string;
 }
 
@@ -204,7 +206,7 @@ export interface FBSummary {
   scope: { type: FbScopeType; id: string | null; name: string };
   revenueKwd: number;
   covers: number;
-  coversdelta: number;
+  coversDelta: number;
   ticketKwd: number;
   ticketKwdDelta: number;
   outletsActive: number;

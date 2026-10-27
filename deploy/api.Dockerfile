@@ -2,8 +2,11 @@
 # Hajery Pulse API — production Dockerfile
 # ============================================================================
 
+# .NET 8 patch level is pinned (SDK 8.0.427 ships runtime 8.0.33) so a rebuild
+# never silently uses an older cached 8.0 image. Bump both tags together.
+
 # ----- Build stage --------------------------------------------------------
-FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
+FROM mcr.microsoft.com/dotnet/sdk:8.0.427 AS build
 WORKDIR /src
 
 COPY api/HajeryPulse.Api.sln ./
@@ -17,7 +20,7 @@ RUN dotnet publish HajeryPulse.Api/HajeryPulse.Api.csproj \
     --no-restore
 
 # ----- Runtime stage ------------------------------------------------------
-FROM mcr.microsoft.com/dotnet/aspnet:8.0 AS runtime
+FROM mcr.microsoft.com/dotnet/aspnet:8.0.33 AS runtime
 WORKDIR /app
 COPY --from=build /app/publish ./
 

@@ -56,7 +56,7 @@ export function PickerModal({
 
           <Text style={styles.title}>{title}</Text>
 
-          {subtitle && (
+          {!!subtitle && (
             <Text style={styles.subtitle}>{subtitle}</Text>
           )}
 
@@ -114,14 +114,14 @@ export function PickerModal({
                       {item.title}
                     </Text>
 
-                    {item.subtitle && (
+                    {!!item.subtitle && (
                       <Text style={styles.optSub}>
                         {item.subtitle}
                       </Text>
                     )}
                   </View>
 
-                  {item.tag && (
+                  {!!item.tag && (
                     <Text style={styles.optTag}>
                       {item.tag}
                     </Text>

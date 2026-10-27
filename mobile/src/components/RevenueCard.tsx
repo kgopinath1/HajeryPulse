@@ -21,14 +21,14 @@ export type Period = 'day' | 'week' | 'month' | 'ytd';
 
 /**
  * X-axis labels for the sparkline, matching the other screens:
- *  week  → Mon…Sun, month → W1…W5, ytd → Jan…Dec.
+ *  week  → Sun…Sat (week-to-date), month → W1…W5, ytd → Jan…Dec.
  * Sliced to `count` so labels line up with however many points came back.
  */
 function getTrendLabels(period: Period, count: number): string[] {
   let labels: string[];
   switch (period) {
     case 'week':
-      labels = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+      labels = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
       break;
     case 'month':
       labels = ['W1', 'W2', 'W3', 'W4', 'W5'];
@@ -106,6 +106,7 @@ export function RevenueCard({
               <View style={{ marginTop: 12 }}>
                 <MultiSparkline
                   primary={data.current}
+                  valueFormat="kwd"
                   secondary={data.previous}
                   primaryColor={primaryColor}
                   secondaryColor={theme.colors.blue}
@@ -130,7 +131,7 @@ export function RevenueCard({
                   </View>
                 </View>
                 <Text style={styles.trendCaption}>
-                  {period === 'week' && 'Last 7 days'}
+                  {period === 'week' && 'Week to date'}
                   {period === 'month' && 'Weekly trend'}
                   {period === 'ytd' && 'Monthly trend'}
                 </Text>

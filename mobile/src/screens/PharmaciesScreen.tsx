@@ -28,8 +28,9 @@ import { InfoToolTip } from '@components/InfoToolTip';
 import { getTrendLabels, getPeriodLabel } from '@utils/labels';
 import { Row } from '@components/Row';
 import { NoDataCard } from '@components/NoDataCard';
+import { BreakdownTotal } from '@components/BreakdownTotal';
 import { pharmaApi } from '@api/pharma';
-import { defaultAsOfDate } from '@utils/date';
+import { defaultAsOfDate, revenuePeriodCaption } from '@utils/date';
 import { fmtKwd, fmtPct, fmtInt, fmtYoy, fmtPpNumber, fmtKwdAsIs, fmtKwdSmallVal, fmtYoyPp } from '@utils/format';
 import {
   Pharmacy, PharmaSummary, PharmaMargin, SalesQuality,
@@ -73,7 +74,7 @@ useEffect(() => {
         pharmaApi.quality(asOfDate, pharmacyId, period),
         pharmaApi.channels(asOfDate, pharmacyId, period),
         pharmaApi.payments(asOfDate, pharmacyId, period),
-        pharmaApi.categories(asOfDate, pharmacyId, 10,period),
+        pharmaApi.categories(asOfDate, pharmacyId, period),
         pharmaApi.rxOtcMix(asOfDate, pharmacyId, period),
         pharmaApi.discountLeaderboard(asOfDate, 10,period),
         pharmaApi.topPharmacies(asOfDate, 10,period),
@@ -142,10 +143,16 @@ const getChannelColor = (code: string) => {
 };
 
 
+// Shown on the breakdown cards (Rx vs OTC, channel, payment type, category):
+// their totals only include fulfilled orders, so they can be lower than the
+// revenue card at the top of the screen.
+const PENDING_FULFILMENT_INFO =
+  'This total includes fulfilled orders only. Orders still pending fulfilment are added once they are completed, so it can be lower than the revenue shown at the top of the screen.';
+
 const getTrendLabels = (period: string, length: number): string[] => {
   switch (period) {
     case 'week':
-      return ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+      return ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].slice(0, length || 7);
     case 'month':
       return Array.from({ length }, (_, i) => `W${i + 1}`);
     case 'ytd':
@@ -207,7 +214,7 @@ const getTrendLabels = (period: string, length: number): string[] => {
       {/* Revenue card */}
 {summary ? (
   <Card>
-    <Text style={styles.eyebrow}>REVENUE · {period.toUpperCase()} TO DATE</Text>
+    <Text style={styles.eyebrow}>REVENUE · {revenuePeriodCaption(period, asOfDate)}</Text>
     <Text style={styles.hero}>{fmtKwd(summary.revenueKwd)}</Text>
     <View style={{ marginTop: 4 }}>
       <Chip label={fmtYoy(summary.growthPct, summary.growthType)} tone={summary.growthPct >= 0 ? 'green' : 'red'} />
@@ -216,6 +223,7 @@ const getTrendLabels = (period: string, length: number): string[] => {
       <View style={{ marginTop: 12 }}>
         <MultiSparkline
           primary={trend.current ?? []}
+          valueFormat="kwd"
           secondary={trend.previous ?? []}
           primaryColor={theme.colors.teal}
           secondaryColor={theme.colors.blue}
@@ -233,7 +241,7 @@ const getTrendLabels = (period: string, length: number): string[] => {
           </View>
         </View>
         <Text style={{ color: theme.colors.text2 }}>
-          {period === 'week' && 'Last 7 days'}
+          {period === 'week' && 'Week to date'}
           {period === 'month' && 'Weekly trend'}
           {period === 'ytd' && 'Monthly trend'}
         </Text>
@@ -273,6 +281,10 @@ const getTrendLabels = (period: string, length: number): string[] => {
 <SectionTitle title="Rx vs OTC Mix" rightLabel={pharmacyId === 'all' ? 'All pharmacies' : currentPharmacyName} />
 {rxMix ? (
   <Card>
+    <BreakdownTotal
+      amount={(rxMix.rxKwd ?? 0) + (rxMix.otcKwd ?? 0)}
+      info={PENDING_FULFILMENT_INFO}
+    />
     <Text style={styles.eyebrow}>PRESCRIPTION (Rx) SHARE</Text>
     <Text style={[styles.hero, { color: theme.colors.teal }]}>{fmtPct(rxMix.rxPct, 2)}</Text>
     <Text style={styles.subtle}>OTC {fmtPct(rxMix.otcPct, 2)}</Text>
@@ -348,7 +360,8 @@ const getTrendLabels = (period: string, length: number): string[] => {
  {/*  <InfoToolTip
     text="Change in margin percentage, not percent change. Example: margin moving from 22.0% to 25.0% is shown as +3 percentage points, not a 3% increase."
   /> */}
-</View>    </View>
+</View>
+    </View>
 
     {period !== 'day' && (
       <View style={styles.marginTrend}>
@@ -427,7 +440,7 @@ const getTrendLabels = (period: string, length: number): string[] => {
         value={fmtKwd(margin.netSalesKwd)}
         valueColor={theme.colors.teal}
         subtitle="After discount & returns"
-      />
+      />                                                                 
 
     <View style={{ flex: 1, minWidth: '47%' }}>
   <View style={{ position: 'relative' }}>
@@ -470,14 +483,26 @@ const getTrendLabels = (period: string, length: number): string[] => {
 
         {/* Sales Quality */}
         <SectionTitle title="Sales Quality" rightLabel="Returns analysis" />
-        {quality ? (
+        {quality ? (() => {
+          // GrossSales from the sync already has returns deducted, and
+          // Net = Gross − Discount. So the split of gross is Net + Discount,
+          // with returns shown separately as information (not part of 100%).
+          // Discount % is derived from the rounded net % so the two always
+          // add up to exactly 100.00%.
+          const gross = quality.grossKwd ?? 0;
+          const net = quality.netKwd ?? 0;
+          const discountKwd = gross - net;
+          const netShare = gross > 0 ? Number(((net / gross) * 100).toFixed(2)) : 0;
+          const discountShare = gross > 0 ? Number((100 - netShare).toFixed(2)) : 0;
+          const barWidth = (pct: number) => `${Math.min(Math.max(pct, 0), 100)}%` as const;
+
+          return (
           <>
-            
             <Card>
-              <Text style={styles.eyebrow}>GROSS → NET → RETURNS</Text>
-              <Text style={styles.hero}>{fmtKwd(quality.netKwd)}</Text>
+              <Text style={styles.eyebrow}>SALES & RETURNS</Text>
+              <Text style={styles.hero}>{fmtKwd(net)}</Text>
               <View style={styles.marginHeaderRow}>
-                <Text style={styles.subtle}>{fmtPct(quality.netPct)} of gross retained</Text>
+                <Text style={styles.subtle}>{fmtPct(netShare, 2)} of gross retained</Text>
                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
   <Chip
     label={`${quality.netPctPp >= 0 ? '▲' : '▼'} ${Math.abs(quality.netPctPp || 0).toFixed(1)}  ${quality.growthType} pp`}
@@ -492,22 +517,28 @@ const getTrendLabels = (period: string, length: number): string[] => {
                 {/* Gross sales */}
                 <View style={{ marginBottom: 12 }}>
                   <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
-                    <Text style={{ color: theme.colors.amber, fontWeight: '600', fontSize: 12 }}>Gross sales</Text>
-                    <Text style={{ color: theme.colors.text0, fontFamily: theme.fonts.numeric, fontWeight: '700' }}>{fmtKwd(quality.grossKwd)}</Text>
+                    <Text style={{ color: theme.colors.amber, fontWeight: '600', fontSize: 12 }}>
+                      Gross sales <Text style={{ color: theme.colors.text2, fontWeight: '400' }}>(net of returns)</Text>
+                    </Text>
+                    <Text style={{ color: theme.colors.text0, fontFamily: theme.fonts.numeric, fontWeight: '700' }}>
+                      {fmtKwd(gross)}  <Text style={{ color: theme.colors.text2, fontWeight: '600' }}>100%</Text>
+                    </Text>
                   </View>
                   <View style={{ height: 8, borderRadius: 4, backgroundColor: 'rgba(255,255,255,0.06)', overflow: 'hidden' }}>
                     <View style={{ height: '100%', backgroundColor: theme.colors.amber, width: '100%' }} />
                   </View>
                 </View>
 
-                {/* Sales returns */}
+                {/* Discounts */}
                 <View style={{ marginBottom: 12 }}>
                   <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
-                    <Text style={{ color: theme.colors.red, fontWeight: '600', fontSize: 12 }}>Sales returns</Text>
-                    <Text style={{ color: theme.colors.text0, fontFamily: theme.fonts.numeric, fontWeight: '700' }}>{fmtKwd(quality.returnsKwd)}</Text>
+                    <Text style={{ color: theme.colors.purple, fontWeight: '600', fontSize: 12 }}>Discounts</Text>
+                    <Text style={{ color: theme.colors.text0, fontFamily: theme.fonts.numeric, fontWeight: '700' }}>
+                      {fmtKwd(discountKwd)}  <Text style={{ color: theme.colors.text2, fontWeight: '600' }}>{fmtPct(discountShare, 2)}</Text>
+                    </Text>
                   </View>
                   <View style={{ height: 8, borderRadius: 4, backgroundColor: 'rgba(255,255,255,0.06)', overflow: 'hidden' }}>
-                    <View style={{ height: '100%', backgroundColor: theme.colors.red, width: `${Math.round((quality.returnsKwd / quality.grossKwd) * 100)}%` }} />
+                    <View style={{ height: '100%', backgroundColor: theme.colors.purple, width: barWidth(discountShare) }} />
                   </View>
                 </View>
 
@@ -515,17 +546,29 @@ const getTrendLabels = (period: string, length: number): string[] => {
                 <View style={{ marginBottom: 12 }}>
                   <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
                     <Text style={{ color: theme.colors.teal, fontWeight: '600', fontSize: 12 }}>Net sales</Text>
-                    <Text style={{ color: theme.colors.text0, fontFamily: theme.fonts.numeric, fontWeight: '700' }}>{fmtKwd(quality.netKwd)}</Text>
+                    <Text style={{ color: theme.colors.text0, fontFamily: theme.fonts.numeric, fontWeight: '700' }}>
+                      {fmtKwd(net)}  <Text style={{ color: theme.colors.text2, fontWeight: '600' }}>{fmtPct(netShare, 2)}</Text>
+                    </Text>
                   </View>
                   <View style={{ height: 8, borderRadius: 4, backgroundColor: 'rgba(255,255,255,0.06)', overflow: 'hidden' }}>
-                    <View style={{ height: '100%', backgroundColor: theme.colors.teal, width: `${Math.round((quality.netKwd / quality.grossKwd) * 100)}%` }} />
+                    <View style={{ height: '100%', backgroundColor: theme.colors.teal, width: barWidth(netShare) }} />
                   </View>
                 </View>
               </View>
 
-              {/* Returns metrics footer */}
-              <View style={{ marginTop: 12, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-                <Text style={{ color: theme.colors.red, fontWeight: '600', fontSize: 12 }}>Returns {fmtPct(quality.returnsPct)} of gross</Text>
+              {/* Returns — informational; already deducted from gross above */}
+              <View style={{ marginTop: 4, paddingTop: 12, borderTopWidth: 1, borderTopColor: theme.colors.border }}>
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+                  <Text style={{ color: theme.colors.red, fontWeight: '600', fontSize: 12 }}>Sales returns</Text>
+                  <Text style={{ color: theme.colors.text0, fontFamily: theme.fonts.numeric, fontWeight: '700' }}>
+                    {fmtKwd(quality.returnsKwd)}  <Text style={{ color: theme.colors.text2, fontWeight: '600' }}>{fmtPct(quality.returnsPct, 2)}</Text>
+                  </Text>
+                </View>
+                <View style={{ height: 8, borderRadius: 4, backgroundColor: 'rgba(255,255,255,0.06)', overflow: 'hidden' }}>
+                  <View style={{ height: '100%', backgroundColor: theme.colors.red, width: barWidth(quality.returnsPct ?? 0) }} />
+                </View>
+              <View style={{ marginTop: 8, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                <Text style={{ flex: 1, paddingRight: 8, color: theme.colors.text3, fontSize: 10 }}>Already excluded from gross sales</Text>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
   <Chip
     label={`${quality.returnsPctPp >= 0 ? '▼' : '▲'} ${Math.abs(quality.returnsPctPp || 0).toFixed(1)} ${quality.growthType} pp`}
@@ -535,11 +578,12 @@ const getTrendLabels = (period: string, length: number): string[] => {
     text="Change in sales returns rate versus the previous period, measured in percentage points."
   /> */}
 </View>
-
+              </View>
               </View>
             </Card>
           </>
-          ) : (
+          );
+        })() : (
       <Card>
         <Text style={styles.emptyText}>No sales quality data available</Text>
       </Card>
@@ -551,6 +595,12 @@ const getTrendLabels = (period: string, length: number): string[] => {
 
 {channels.length > 0 ? (
   <Card>
+    <BreakdownTotal
+      amount={channels.reduce((s, c) => s + (c.kwd ?? 0), 0)}
+      meta={`${channels.length} CHANNEL${channels.length > 1 ? 'S' : ''}`}
+      info={PENDING_FULFILMENT_INFO}
+    />
+
     {/* Legend */}
     <View
       style={{
@@ -667,7 +717,14 @@ const getTrendLabels = (period: string, length: number): string[] => {
         <SectionTitle title="Sales by Payment Type" />
         <Card>
           {payments.length > 0 ? (
-          payments.map(p => (
+          <>
+          <BreakdownTotal
+            amount={payments.reduce((s, x) => s + (x.kwd ?? 0), 0)}
+            meta={`${payments.length} TYPE${payments.length > 1 ? 'S' : ''}`}
+            info={PENDING_FULFILMENT_INFO}
+            segments={payments.map(x => ({ value: x.kwd, color: x.color }))}
+          />
+          {payments.map(p => (
 
             <View key={p.key} style={styles.payRow2}>
               <View
@@ -710,24 +767,32 @@ const getTrendLabels = (period: string, length: number): string[] => {
                 {fmtPct(p.pct)}
               </Text>
             </View>
-))
+          ))}
+          </>
       ) : (
         <Text style={styles.emptyText}>No payment data for this period</Text>
       )}
     </Card>
 
 
-  {/* Top 10 Categories */}
-        <SectionTitle title="Top 10 Categories" />
+  {/* Sales by Category */}
+        <SectionTitle title="Sales by Category" />
         <Card>
           {categories.length > 0 ? (
-          categories.map(c => (
+          <>
+          <BreakdownTotal
+            amount={categories.reduce((s, x) => s + (x.kwd ?? 0), 0)}
+            meta={`${categories.length} ${categories.length > 1 ? 'CATEGORIES' : 'CATEGORY'}`}
+            info={PENDING_FULFILMENT_INFO}
+          />
+          {categories.map(c => (
             <View key={c.key} style={styles.payRow2}>
               <Text style={{ color: theme.colors.text0, flex: 1 }}>{c.label}</Text>
               <Text style={{ width: 130, textAlign: 'left', color: theme.colors.text0, fontFamily: theme.fonts.numeric, fontWeight: '700' }}>{fmtKwdAsIs(c.kwd)}</Text>
               <Chip label={fmtPct(c.pct, 0)} tone="teal" />
             </View>
-          )) 
+          ))}
+          </>
         ) : (
         <Text style={styles.emptyText}>No category data available</Text>
       )}

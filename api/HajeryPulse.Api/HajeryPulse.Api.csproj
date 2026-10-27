@@ -10,7 +10,7 @@
 
   <ItemGroup>
     <!-- Web framework -->
-    <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="8.0.10" />
+    <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="8.0.33" />
     <PackageReference Include="Swashbuckle.AspNetCore" Version="6.7.3" />
 
     <!-- Auth: Entra ID / Azure AD -->

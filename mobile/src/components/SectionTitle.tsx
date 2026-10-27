@@ -9,12 +9,15 @@ interface SectionTitleProps {
 }
 
 export function SectionTitle({ title, rightLabel, onPressRight }: SectionTitleProps): React.JSX.Element {
-  const isStringLabel = typeof rightLabel === 'string';
+  // Strings and numbers must be wrapped in <Text>; empty values render nothing.
+  const isStringLabel = typeof rightLabel === 'string' || typeof rightLabel === 'number';
+  const hasRightLabel =
+    rightLabel !== undefined && rightLabel !== null && rightLabel !== false && rightLabel !== '';
 
   return (
     <View style={styles.row}>
       <Text style={styles.title}>{title}</Text>
-      {rightLabel && (
+      {hasRightLabel && (
         <View style={styles.rightContainer}>
           {isStringLabel ? (
             <Text style={[styles.rightText, onPressRight && { color: theme.colors.gold }]} onPress={onPressRight}>
