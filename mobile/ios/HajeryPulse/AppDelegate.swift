@@ -1,6 +1,7 @@
 import UIKit
 import Darwin
 import Foundation
+import MSAL
 import React
 import React_RCTAppDelegate
 import ReactAppDependencyProvider
@@ -40,6 +41,23 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     )
 
     return true
+  }
+
+  // MARK: - Microsoft sign-in broker response
+  //
+  // When sign-in goes through Microsoft Authenticator, Authenticator returns
+  // the result by reopening this app via msauth.com.hajerypulse://auth. MSAL
+  // only completes the request if that URL is handed back to it here —
+  // without this, the broker flow fails on device.
+  func application(
+    _ app: UIApplication,
+    open url: URL,
+    options: [UIApplication.OpenURLOptionsKey: Any] = [:]
+  ) -> Bool {
+    return MSALPublicClientApplication.handleMSALResponse(
+      url,
+      sourceApplication: options[UIApplication.OpenURLOptionsKey.sourceApplication] as? String
+    )
   }
 
   // MARK: - App-switcher privacy

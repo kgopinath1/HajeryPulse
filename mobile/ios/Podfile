@@ -16,6 +16,10 @@ end
 
 target 'HajeryPulse' do
   config = use_native_modules!
+
+  # Lets AppDelegate.swift `import MSAL` (to hand the Authenticator broker
+  # response back to MSAL) while pods stay statically linked.
+  pod 'MSAL', :modular_headers => true
   use_react_native!(
     :path => config[:reactNativePath],
     # An absolute path to your application root.
