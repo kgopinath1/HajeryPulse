@@ -29,6 +29,12 @@ mobile/ios/build/
 .idea/
 .vscode/
 
+# Signing keys — the Play upload key lives in Codemagic / a vault, never here.
+# The React Native debug keystore is public and stays tracked.
+*.jks
+*.keystore
+!mobile/android/app/debug.keystore
+
 # Zip files
 *.zip
 

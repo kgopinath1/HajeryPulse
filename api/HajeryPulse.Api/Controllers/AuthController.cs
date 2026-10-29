@@ -1,3 +1,4 @@
+using HajeryPulse.Api.Demo;
 using HajeryPulse.Api.Models.Dto;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -16,6 +17,10 @@ namespace HajeryPulse.Api.Controllers;
 [Route("api/v1/auth")]
 public sealed class AuthController : ControllerBase
 {
+    private readonly IConfiguration _config;
+
+    public AuthController(IConfiguration config) => _config = config;
+
     [HttpGet("me")]
     public ActionResult<AuthUserDto> Me()
     {
@@ -45,7 +50,8 @@ public sealed class AuthController : ControllerBase
             Name: name,
             Email: email,
             Roles: roles,
-            ScopedBuCodes: scopedBuCodes));
+            ScopedBuCodes: scopedBuCodes,
+            IsDemo: User.IsDemoUser(_config)));
     }
 
     [HttpPost("signout")]
@@ -61,4 +67,5 @@ public sealed class AuthController : ControllerBase
 
 public sealed record AuthUserDto(
     string Id, string Name, string Email,
-    IReadOnlyCollection<string> Roles, IReadOnlyCollection<string> ScopedBuCodes);
+    IReadOnlyCollection<string> Roles, IReadOnlyCollection<string> ScopedBuCodes,
+    bool IsDemo);

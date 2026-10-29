@@ -1,6 +1,7 @@
 using HajeryPulse.Api.Auth;
 using HajeryPulse.Api.Data;
 using HajeryPulse.Api.Data.Repositories;
+using HajeryPulse.Api.Demo;
 using HajeryPulse.Api.Middleware;
 using HajeryPulse.Api.Services;
 using HajeryPulse.Api.Validation;
@@ -63,11 +64,14 @@ builder.Services.AddScoped<SqlConnection>(_ => new SqlConnection(sqlConnString))
 builder.Services.AddScoped<IDbConnectionFactory, DbConnectionFactory>();
 
 // ---------- Repositories ----------
-builder.Services.AddScoped<ISalesRepository,   SalesRepository>();
-builder.Services.AddScoped<IPharmaRepository,  PharmaRepository>();
-builder.Services.AddScoped<IFBRepository,      FBRepository>();
-builder.Services.AddScoped<IFinanceRepository, FinanceRepository>();
-builder.Services.AddScoped<IHomeRepository,    HomeRepository>();
+// The App Store review account (DemoMode:UserObjectIds) gets Demo* repositories
+// with generated sample data; everyone else gets the real reporting DB.
+builder.Services.AddHttpContextAccessor();
+builder.Services.AddDemoSwitched<ISalesRepository,   SalesRepository,   DemoSalesRepository>();
+builder.Services.AddDemoSwitched<IPharmaRepository,  PharmaRepository,  DemoPharmaRepository>();
+builder.Services.AddDemoSwitched<IFBRepository,      FBRepository,      DemoFBRepository>();
+builder.Services.AddDemoSwitched<IFinanceRepository, FinanceRepository, DemoFinanceRepository>();
+builder.Services.AddDemoSwitched<IHomeRepository,    HomeRepository,    DemoHomeRepository>();
 builder.Services.AddHttpClient<IInboxRepository, InboxRepository>(client =>
 {
     client.BaseAddress = new Uri("http://192.168.10.147:8086/");
@@ -144,3 +148,6 @@ static void DecryptProtectedSecrets(ConfigurationManager config)
 
     if (overrides.Count > 0) config.AddInMemoryCollection(overrides);
 }
+
+// Lets the in-memory API tests (HajeryPulse.Api.Tests) use WebApplicationFactory<Program>.
+public partial class Program { }

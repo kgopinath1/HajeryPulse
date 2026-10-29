@@ -82,8 +82,10 @@ android {
         applicationId "com.hajerypulse"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 1
-        versionName "1.0"
+        // Google Play rejects a versionCode it has already seen, so CI passes
+        // -PappVersionCode=<n> on every upload. Local builds default to 1.
+        versionCode((project.findProperty("appVersionCode") ?: "1").toString().toInteger())
+        versionName((project.findProperty("appVersionName") ?: "1.0").toString())
     }
     signingConfigs {
         debug {
@@ -92,15 +94,32 @@ android {
             keyAlias 'androiddebugkey'
             keyPassword 'android'
         }
+        release {
+            // Google Play upload key. On Codemagic these come from the
+            // android_signing keystore reference (CM_KEYSTORE_*); locally from
+            // HAJERY_UPLOAD_* in ~/.gradle/gradle.properties. Never commit them.
+            def keystorePath = System.getenv("CM_KEYSTORE_PATH") ?: project.findProperty("HAJERY_UPLOAD_STORE_FILE")
+            if (keystorePath) {
+                storeFile file(keystorePath)
+                storePassword System.getenv("CM_KEYSTORE_PASSWORD") ?: project.findProperty("HAJERY_UPLOAD_STORE_PASSWORD")
+                keyAlias System.getenv("CM_KEY_ALIAS") ?: project.findProperty("HAJERY_UPLOAD_KEY_ALIAS")
+                keyPassword System.getenv("CM_KEY_PASSWORD") ?: project.findProperty("HAJERY_UPLOAD_KEY_PASSWORD")
+            }
+        }
     }
     buildTypes {
         debug {
             signingConfig signingConfigs.debug
         }
         release {
-            // Caution! In production, you need to generate your own keystore file.
-            // see https://reactnative.dev/docs/signed-apk-android.
-            signingConfig signingConfigs.debug
+            // Falls back to the debug key when no upload key is configured, so
+            // local/Appetize release builds still work. Play rejects those.
+            if (signingConfigs.release.storeFile) {
+                signingConfig signingConfigs.release
+            } else {
+                logger.warn("No upload keystore configured — release build is signed with the DEBUG key.")
+                signingConfig signingConfigs.debug
+            }
             minifyEnabled enableProguardInReleaseBuilds
             proguardFiles getDefaultProguardFile("proguard-android.txt"), "proguard-rules.pro"
         }

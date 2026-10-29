@@ -1,5 +1,6 @@
 using System.Security.Claims;
 using HajeryPulse.Api.Data;
+using HajeryPulse.Api.Demo;
 using Dapper;
 
 namespace HajeryPulse.Api.Middleware;
@@ -19,7 +20,7 @@ public sealed class AuditLogMiddleware
         _logger = logger;
     }
 
-    public async Task InvokeAsync(HttpContext ctx, IDbConnectionFactory dbFactory)
+    public async Task InvokeAsync(HttpContext ctx, IDbConnectionFactory dbFactory, IConfiguration config)
     {
         await _next(ctx);
 
@@ -31,6 +32,15 @@ public sealed class AuditLogMiddleware
         var path = ctx.Request.Path.Value ?? "";
         if (path.StartsWith("/health", StringComparison.OrdinalIgnoreCase)) return;
         if (path.StartsWith("/swagger", StringComparison.OrdinalIgnoreCase)) return;
+
+        // The review account isn't in dim.User and only sees sample data, so
+        // it goes to the app log (filterable by "DEMO") instead of audit.Event.
+        if (ctx.User.IsDemoUser(config))
+        {
+            _logger.LogInformation("DEMO account {Method} {Path} from {ClientIp}",
+                ctx.Request.Method, path, ctx.Connection.RemoteIpAddress?.ToString() ?? "");
+            return;
+        }
 
         try
         {

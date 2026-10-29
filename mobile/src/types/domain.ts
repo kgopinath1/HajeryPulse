@@ -276,6 +276,8 @@ export interface AuthUser {
   email: string;
   roles: string[];
   scopedBuCodes: string[];
+  /** True for the App Store review account, which only ever sees generated sample data. */
+  isDemo?: boolean;
 }
 
 export interface AuthSession {

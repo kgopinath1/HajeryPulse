@@ -1,4 +1,5 @@
 using System.Security.Claims;
+using HajeryPulse.Api.Demo;
 using HajeryPulse.Api.Services;
 
 namespace HajeryPulse.Api.Middleware;
@@ -23,7 +24,7 @@ public sealed class DeviceControlMiddleware
 
     public DeviceControlMiddleware(RequestDelegate next) => _next = next;
 
-    public async Task InvokeAsync(HttpContext ctx, IDeviceRegistryService registry)
+    public async Task InvokeAsync(HttpContext ctx, IDeviceRegistryService registry, IConfiguration config)
     {
         var path = ctx.Request.Path.Value ?? "";
         if (path.StartsWith("/health", StringComparison.OrdinalIgnoreCase) ||
@@ -53,7 +54,10 @@ public sealed class DeviceControlMiddleware
             return;
         }
 
-        if (!record.IsApproved)
+        // The App Store review account only ever sees generated sample data,
+        // and the reviewer's device can't be approved ahead of time — so it
+        // skips approval. It's still recorded above and can still be blocked.
+        if (!record.IsApproved && !ctx.User.IsDemoUser(config))
         {
             await RejectAsync(ctx, "DEVICE_NOT_APPROVED",
                 $"This device isn't approved yet. Give IT this device ID to enable access: {deviceId}");

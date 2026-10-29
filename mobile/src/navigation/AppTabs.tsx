@@ -1,6 +1,6 @@
 import React from 'react';
-import { Text, View } from 'react-native';
-import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+import { StyleSheet, Text, View } from 'react-native';
+import { BottomTabBar, BottomTabBarProps, createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import { HomeScreen }              from '@screens/HomeScreen';
@@ -11,6 +11,7 @@ import { FinanceOpsScreen }        from '@screens/FinanceOpsScreen';
 import { InboxScreen }             from '@screens/InboxScreen';
 import { AppTabsParamList } from './types';
 import { theme } from '@theme/index';
+import { useAuth } from '@auth/AuthContext';
 
 const Tab = createBottomTabNavigator<AppTabsParamList>();
 
@@ -18,6 +19,17 @@ const tabIcon = (iconName: string) => ({ color, size }: { color: string; size: n
   <Ionicons name={iconName} size={22} color={color} />
 );
 
+// Demo (App Store review) account only: a strip above the tab bar so the
+// generated figures are never mistaken for real ones, on every tab.
+const demoTabBar = (props: BottomTabBarProps) => (
+  <View>
+    <View style={styles.demoBanner}>
+      <Ionicons name="flask-outline" size={13} color={theme.colors.amber} />
+      <Text style={styles.demoBannerText}>Sample data · demo account</Text>
+    </View>
+    <BottomTabBar {...props} />
+  </View>
+);
 
 export function AppTabs(): React.JSX.Element {
   // Fixed height alone would sit under whatever system UI a device reserves
@@ -25,9 +37,11 @@ export function AppTabs(): React.JSX.Element {
   // the actual inset keeps the tab bar clear of it on any device, not just
   // the one it happened to look fine on during testing.
   const insets = useSafeAreaInsets();
+  const { user } = useAuth();
   return (
     <Tab.Navigator
       initialRouteName="Home"
+      tabBar={user?.isDemo ? demoTabBar : undefined}
       screenOptions={{
         tabBarStyle: {
           backgroundColor: theme.colors.surface,
@@ -103,3 +117,22 @@ export function AppTabs(): React.JSX.Element {
     </Tab.Navigator>
   );
 }
+
+const styles = StyleSheet.create({
+  demoBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 5,
+    backgroundColor: theme.colors.surfaceHi,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: theme.colors.amber,
+  },
+  demoBannerText: {
+    color: theme.colors.amber,
+    fontSize: 11,
+    fontWeight: '600',
+    letterSpacing: 0.3,
+  },
+});
