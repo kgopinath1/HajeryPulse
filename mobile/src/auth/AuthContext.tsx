@@ -47,7 +47,8 @@ interface AuthContextValue {
   blocked: boolean;
   locked: boolean;
   activationRequired: ActivationRequired | null;
-  signIn: () => Promise<void>;
+  /** differentAccount: skip Microsoft Authenticator so any account can be entered (see signInWithEntraId). */
+  signIn: (options?: { differentAccount?: boolean }) => Promise<void>;
   signOut: () => Promise<void>;
   /** Redeems an activation code from IT. Rejects with the API's ApiError (message is user-facing). */
   activate: (code: string) => Promise<void>;
@@ -180,10 +181,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }): React
     return () => sub.remove();
   }, [user]);
 
-  const signIn = useCallback(async () => {
+  const signIn = useCallback(async (options?: { differentAccount?: boolean }) => {
     setIsLoading(true);
     try {
-      const session = await signInWithEntraId();
+      const session = await signInWithEntraId(options);
       await completeSignIn(session);
     } finally {
       setIsLoading(false);
