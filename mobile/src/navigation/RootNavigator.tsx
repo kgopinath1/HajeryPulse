@@ -5,6 +5,7 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 
 import { useAuth } from '@auth/AuthContext';
 import { LoginScreen } from '@screens/LoginScreen';
+import { ActivationScreen } from '@screens/ActivationScreen';
 import { ApprovalDetailScreen } from '@screens/ApprovalDetailScreen';
 import { ProfileScreen } from '@screens/ProfileScreen';
 import { AppTabs } from './AppTabs';
@@ -28,7 +29,7 @@ const navTheme = {
 };
 
 export function RootNavigator(): React.JSX.Element {
-  const { user, isLoading, blocked, locked, unlock, signOut } = useAuth();
+  const { user, isLoading, blocked, locked, activationRequired, unlock, signOut } = useAuth();
   const [unlocking, setUnlocking] = useState(false);
   const [unlockFailed, setUnlockFailed] = useState(false);
 
@@ -48,6 +49,12 @@ export function RootNavigator(): React.JSX.Element {
         <ActivityIndicator color={theme.colors.gold} size="large" />
       </View>
     );
+  }
+
+  // Signed in with Microsoft, but this device needs an activation code —
+  // checked before anything else so a revoked device can't stay on a screen.
+  if (activationRequired) {
+    return <ActivationScreen />;
   }
 
   if (user && locked) {

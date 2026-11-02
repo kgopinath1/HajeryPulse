@@ -3,7 +3,7 @@ workflows:
     name: Android Debug Build
     max_build_duration: 30
     environment:
-      node: 20
+      node: 24.22.1
       vars:
         PROJECT_PATH: mobile
     scripts:
@@ -22,7 +22,7 @@ workflows:
     name: Android Release Build (for Appetize comparison test)
     max_build_duration: 30
     environment:
-      node: 20
+      node: 24.22.1
       vars:
         PROJECT_PATH: mobile
     scripts:
@@ -41,7 +41,7 @@ workflows:
     name: Android Google Play Release (AAB, internal track)
     max_build_duration: 45
     environment:
-      node: 20
+      node: 24.22.1
       android_signing:
         - hajerypulse_upload                          # upload keystore reference in Codemagic Team settings → Code signing identities
       groups:
@@ -98,7 +98,7 @@ workflows:
     max_build_duration: 60
     instance_type: mac_mini_m2
     environment:
-      node: 20
+      node: 24.22.1
       groups:
         - appetize
       vars:
@@ -168,7 +168,7 @@ workflows:
     integrations:
       app_store_connect: Codemagic
     environment:
-      node: 20
+      node: 24.22.1
       groups:
         - AppleDev
       vars:

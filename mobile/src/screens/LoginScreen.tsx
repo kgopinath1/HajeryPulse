@@ -28,9 +28,9 @@ export function LoginScreen(): React.JSX.Element {
       if (e instanceof EntraSignInError && e.reason === 'cancelled') {
         return;
       }
-      // ApiError messages are backend-crafted for end-user display (e.g. device
-      // approval/blacklist notices from DeviceControlMiddleware) — safe to show
-      // directly, unlike an arbitrary raw exception's message.
+      // ApiError messages are backend-crafted for end-user display — safe to
+      // show directly, unlike an arbitrary raw exception's message. (Device
+      // activation errors don't land here: AuthContext shows ActivationScreen.)
       const message = e instanceof EntraSignInError
         ? e.message
         : isApiError(e)

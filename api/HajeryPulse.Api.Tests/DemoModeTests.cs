@@ -211,37 +211,20 @@ public sealed class DemoModeTests : IClassFixture<DemoApiFactory>
         Assert.True((await Get("/api/v1/auth/me")).GetProperty("isDemo").GetBoolean());
 
         var regular = _factory.ClientFor(DemoApiFactory.RegularOid);
-        await _factory.Services.GetRequiredService<HajeryPulse.Api.Services.IDeviceRegistryService>()
-            .ApproveAsync("approved-device");
-        regular.DefaultRequestHeaders.Remove("X-Device-Id");
-        regular.DefaultRequestHeaders.Add("X-Device-Id", "approved-device");
+        regular.DefaultRequestHeaders.Add("X-Device-Key", FakeDeviceActivation.ActiveKey);
         Assert.False((await Get("/api/v1/auth/me", regular)).GetProperty("isDemo").GetBoolean());
     }
 
     [Fact]
-    public async Task Unapproved_device_is_blocked_for_regular_users_but_not_the_demo_account()
+    public async Task Unactivated_device_is_blocked_for_regular_users_but_the_demo_account_needs_no_key()
     {
         var regular = _factory.ClientFor(DemoApiFactory.RegularOid);
         var blocked = await regular.GetAsync("/api/v1/auth/me");
         Assert.Equal(HttpStatusCode.Forbidden, blocked.StatusCode);
-        Assert.Contains("DEVICE_NOT_APPROVED", await blocked.Content.ReadAsStringAsync());
+        Assert.Contains("DEVICE_NOT_ACTIVATED", await blocked.Content.ReadAsStringAsync());
 
         var demo = await _demo.GetAsync("/api/v1/auth/me");
         Assert.Equal(HttpStatusCode.OK, demo.StatusCode);
-    }
-
-    [Fact]
-    public async Task Blacklisted_device_is_blocked_even_for_the_demo_account()
-    {
-        var client = _factory.ClientFor(DemoApiFactory.DemoOid);
-        client.DefaultRequestHeaders.Remove("X-Device-Id");
-        client.DefaultRequestHeaders.Add("X-Device-Id", "blacklisted-device");
-        await _factory.Services.GetRequiredService<HajeryPulse.Api.Services.IDeviceRegistryService>()
-            .BlacklistAsync("blacklisted-device", "test");
-
-        var resp = await client.GetAsync("/api/v1/auth/me");
-        Assert.Equal(HttpStatusCode.Forbidden, resp.StatusCode);
-        Assert.Contains("DEVICE_BLOCKED", await resp.Content.ReadAsStringAsync());
     }
 
     [Theory]

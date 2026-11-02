@@ -1,70 +1,68 @@
-using System.Security.Claims;
 using HajeryPulse.Api.Demo;
 using HajeryPulse.Api.Services;
+using Microsoft.Identity.Web;
 
 namespace HajeryPulse.Api.Middleware;
 
 /// <summary>
-/// Device allowlist enforcement — the compensating control for RBAC not
-/// existing yet. Every request must carry X-Device-Id, and that device must
-/// already be explicitly approved by an admin (see AdminDevicesController),
-/// or it's rejected. A never-seen device gets recorded (unapproved) so an
-/// admin can find and approve it, but the request itself is still blocked.
+/// Device activation enforcement — the compensating control for RBAC not
+/// existing yet. Every signed-in request must carry X-Device-Key: the secret
+/// the app received when the user activated this phone with a code from IT
+/// (see DeviceActivationService). A missing, unknown or other user's key is
+/// DEVICE_NOT_ACTIVATED; a key replaced by a newer activation or revoked by
+/// IT is DEVICE_REVOKED. Either way the app shows its activation screen.
 ///
-/// Admin device-management routes, health, and swagger are exempt so the
-/// registry can always be managed regardless of the caller's own device state.
-///
-/// This is still a soft control: the device ID is self-reported by the
-/// client, so it narrows a valid token to pre-approved devices — it doesn't
-/// replace token validation as the source of identity.
+/// Unauthenticated requests pass through so [Authorize] answers 401 (which
+/// the app refreshes its token on). Activation itself, sign-out, health and
+/// swagger are exempt.
 /// </summary>
 public sealed class DeviceControlMiddleware
 {
+    private static readonly string[] ExemptPrefixes =
+    {
+        "/health", "/swagger", "/api/v1/device/activate", "/api/v1/auth/signout",
+    };
+
     private readonly RequestDelegate _next;
 
     public DeviceControlMiddleware(RequestDelegate next) => _next = next;
 
-    public async Task InvokeAsync(HttpContext ctx, IDeviceRegistryService registry, IConfiguration config)
+    public async Task InvokeAsync(HttpContext ctx, IDeviceActivationService devices, IConfiguration config)
     {
         var path = ctx.Request.Path.Value ?? "";
-        if (path.StartsWith("/health", StringComparison.OrdinalIgnoreCase) ||
-            path.StartsWith("/swagger", StringComparison.OrdinalIgnoreCase) ||
-            path.StartsWith("/api/v1/admin/devices", StringComparison.OrdinalIgnoreCase))
+        if (ExemptPrefixes.Any(p => path.StartsWith(p, StringComparison.OrdinalIgnoreCase)) ||
+            ctx.User?.Identity?.IsAuthenticated != true)
         {
             await _next(ctx);
             return;
         }
 
-        var deviceId = ctx.Request.Headers["X-Device-Id"].ToString();
-        if (string.IsNullOrWhiteSpace(deviceId))
+        // The App Store / Play review account only ever sees generated sample
+        // data, and reviewers use many devices — it never needs a code.
+        if (ctx.User.IsDemoUser(config))
         {
-            await RejectAsync(ctx, "DEVICE_ID_REQUIRED", "This app build doesn't identify its device. Update the app.");
+            await _next(ctx);
             return;
         }
 
-        var userId = ctx.User?.Identity?.IsAuthenticated == true
-            ? ctx.User.FindFirstValue(ClaimTypes.NameIdentifier)
-            : null;
-        var platform = ctx.Request.Headers["X-Device-Platform"].ToString();
-        var record = await registry.TouchAsync(deviceId, userId, string.IsNullOrWhiteSpace(platform) ? null : platform);
+        var status = Guid.TryParse(ctx.User.GetObjectId(), out var oid)
+            ? await devices.CheckAsync(oid, ctx.Request.Headers["X-Device-Key"].ToString())
+            : DeviceKeyStatus.NotActivated;
 
-        if (record.IsBlacklisted)
+        switch (status)
         {
-            await RejectAsync(ctx, "DEVICE_BLOCKED", "This device has been blocked. Contact IT support.");
-            return;
+            case DeviceKeyStatus.Active:
+                await _next(ctx);
+                break;
+            case DeviceKeyStatus.Revoked:
+                await RejectAsync(ctx, "DEVICE_REVOKED",
+                    "Hajery Pulse has been turned off on this device, either because it was activated on another device or by IT. Enter a new activation code from IT to continue.");
+                break;
+            default:
+                await RejectAsync(ctx, "DEVICE_NOT_ACTIVATED",
+                    "This device needs to be activated. Enter the activation code from IT.");
+                break;
         }
-
-        // The App Store review account only ever sees generated sample data,
-        // and the reviewer's device can't be approved ahead of time — so it
-        // skips approval. It's still recorded above and can still be blocked.
-        if (!record.IsApproved && !ctx.User.IsDemoUser(config))
-        {
-            await RejectAsync(ctx, "DEVICE_NOT_APPROVED",
-                $"This device isn't approved yet. Give IT this device ID to enable access: {deviceId}");
-            return;
-        }
-
-        await _next(ctx);
     }
 
     private static async Task RejectAsync(HttpContext ctx, string code, string message)

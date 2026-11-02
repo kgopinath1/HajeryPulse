@@ -8,10 +8,9 @@
  *  - Retry idempotent GETs once on 5xx
  */
 import axios, { AxiosError, AxiosInstance, InternalAxiosRequestConfig } from 'axios';
-import { Platform } from 'react-native';
 import { getStoredAccessToken, setAccessToken } from '@auth/tokens';
 import { acquireTokenSilently } from '@auth/entraId';
-import { getDeviceId } from '@auth/deviceId';
+import { getDeviceKey } from '@auth/deviceKey';
 
 // Android routes through "localhost" too, same as iOS Simulator — but only
 // works because of `adb reverse tcp:50757 tcp:50757`, forwarding the
@@ -71,10 +70,23 @@ apiClient.interceptors.request.use(async (config: InternalAxiosRequestConfig) =>
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
-  config.headers['X-Device-Id'] = await getDeviceId();
-  config.headers['X-Device-Platform'] = Platform.OS;
+  const deviceKey = getDeviceKey();
+  if (deviceKey) {
+    config.headers['X-Device-Key'] = deviceKey;
+  }
   return config;
 });
+
+export type DeviceActivationReason = 'DEVICE_NOT_ACTIVATED' | 'DEVICE_REVOKED';
+
+// AuthContext registers this so that a device revoked mid-session (activated
+// on another phone, or turned off by IT) switches straight to the activation
+// screen, whichever screen's request hit it.
+let onDeviceActivationRequired: ((reason: DeviceActivationReason) => void) | null = null;
+
+export function setDeviceActivationHandler(handler: ((reason: DeviceActivationReason) => void) | null): void {
+  onDeviceActivationRequired = handler;
+}
 
 let refreshing: Promise<string | null> | null = null;
 
@@ -115,6 +127,9 @@ apiClient.interceptors.response.use(
       traceId: body?.error?.traceId,
       status,
     };
+    if (status === 403 && (apiError.code === 'DEVICE_NOT_ACTIVATED' || apiError.code === 'DEVICE_REVOKED')) {
+      onDeviceActivationRequired?.(apiError.code);
+    }
     return Promise.reject(apiError);
   },
 );

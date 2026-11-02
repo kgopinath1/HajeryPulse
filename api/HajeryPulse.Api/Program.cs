@@ -83,7 +83,8 @@ builder.Services.AddScoped<IFBService,      FBService>();
 builder.Services.AddScoped<IFinanceService, FinanceService>();
 builder.Services.AddScoped<IInboxService, InboxService>();
 builder.Services.AddScoped<IHomeService,    HomeService>();
-builder.Services.AddScoped<IDeviceRegistryService, DeviceRegistryService>();
+builder.Services.AddMemoryCache();
+builder.Services.AddScoped<IDeviceActivationService, DeviceActivationService>();
 
 // ---------- API + Swagger ----------
 builder.Services.AddControllers(options => options.Filters.Add<QueryValidationFilter>());
@@ -144,7 +145,6 @@ static void DecryptProtectedSecrets(ConfigurationManager config)
     }
 
     Decrypt("ConnectionStrings:ReportingDb_Encrypted", "ConnectionStrings:ReportingDb");
-    Decrypt("DeviceControl:AdminApiKey_Encrypted", "DeviceControl:AdminApiKey");
 
     if (overrides.Count > 0) config.AddInMemoryCollection(overrides);
 }

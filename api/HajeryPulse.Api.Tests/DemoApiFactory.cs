@@ -1,4 +1,3 @@
-using System.Collections.Concurrent;
 using System.Security.Claims;
 using System.Text.Encodings.Web;
 using HajeryPulse.Api.Services;
@@ -15,9 +14,10 @@ namespace HajeryPulse.Api.Tests;
 
 /// <summary>
 /// Runs the real API in memory with: a test auth scheme (the caller's Entra
-/// oid comes from the X-Test-Oid header), an in-memory device registry where
-/// every device is unapproved, and a reporting DB connection string that
-/// points nowhere — so any request that reaches a real repository fails.
+/// oid comes from the X-Test-Oid header), a device check where only
+/// <see cref="FakeDeviceActivation.ActiveKey"/> is activated, and a reporting
+/// DB connection string that points nowhere — so any request that reaches a
+/// real repository fails.
 /// </summary>
 public sealed class DemoApiFactory : WebApplicationFactory<Program>
 {
@@ -33,26 +33,17 @@ public sealed class DemoApiFactory : WebApplicationFactory<Program>
 
         builder.ConfigureTestServices(services =>
         {
-            services.AddAuthentication(TestAuthHandler.SchemeName)
-                .AddScheme<AuthenticationSchemeOptions, TestAuthHandler>(TestAuthHandler.SchemeName, _ => { });
-            services.PostConfigure<AuthenticationOptions>(o =>
-            {
-                o.DefaultScheme = TestAuthHandler.SchemeName;
-                o.DefaultAuthenticateScheme = TestAuthHandler.SchemeName;
-                o.DefaultChallengeScheme = TestAuthHandler.SchemeName;
-            });
-
-            services.RemoveAll<IDeviceRegistryService>();
-            services.AddSingleton<IDeviceRegistryService, InMemoryDeviceRegistry>();
+            TestAuthHandler.Register(services);
+            services.RemoveAll<IDeviceActivationService>();
+            services.AddSingleton<IDeviceActivationService, FakeDeviceActivation>();
         });
     }
 
+    /// <summary>A client signed in as <paramref name="oid"/>, sending no device key.</summary>
     public HttpClient ClientFor(string? oid)
     {
         var client = CreateClient();
         if (oid is not null) client.DefaultRequestHeaders.Add(TestAuthHandler.OidHeader, oid);
-        client.DefaultRequestHeaders.Add("X-Device-Id", "test-device-unapproved");
-        client.DefaultRequestHeaders.Add("X-Device-Platform", "ios");
         return client;
     }
 }
@@ -61,6 +52,18 @@ public sealed class TestAuthHandler : AuthenticationHandler<AuthenticationScheme
 {
     public const string SchemeName = "Test";
     public const string OidHeader = "X-Test-Oid";
+
+    public static void Register(IServiceCollection services)
+    {
+        services.AddAuthentication(SchemeName)
+            .AddScheme<AuthenticationSchemeOptions, TestAuthHandler>(SchemeName, _ => { });
+        services.PostConfigure<AuthenticationOptions>(o =>
+        {
+            o.DefaultScheme = SchemeName;
+            o.DefaultAuthenticateScheme = SchemeName;
+            o.DefaultChallengeScheme = SchemeName;
+        });
+    }
 
     public TestAuthHandler(IOptionsMonitor<AuthenticationSchemeOptions> options, ILoggerFactory logger, UrlEncoder encoder)
         : base(options, logger, encoder) { }
@@ -80,40 +83,14 @@ public sealed class TestAuthHandler : AuthenticationHandler<AuthenticationScheme
     }
 }
 
-/// <summary>Device registry where nothing is approved unless a test approves it.</summary>
-public sealed class InMemoryDeviceRegistry : IDeviceRegistryService
+/// <summary>Device check where only <see cref="ActiveKey"/> is activated, for any user.</summary>
+public sealed class FakeDeviceActivation : IDeviceActivationService
 {
-    private readonly ConcurrentDictionary<string, DeviceRecord> _devices = new();
+    public const string ActiveKey = "test-active-device-key";
 
-    public Task<DeviceRecord> TouchAsync(string deviceId, string? userId, string? platform) =>
-        Task.FromResult(_devices.GetOrAdd(deviceId, id => new DeviceRecord
-        {
-            DeviceId = id, UserId = userId, Platform = platform,
-            FirstSeenUtc = DateTime.UtcNow, LastSeenUtc = DateTime.UtcNow,
-        }));
+    public Task<DeviceKeyStatus> CheckAsync(Guid userObjectId, string? deviceKey) =>
+        Task.FromResult(deviceKey == ActiveKey ? DeviceKeyStatus.Active : DeviceKeyStatus.NotActivated);
 
-    public Task<IReadOnlyCollection<DeviceRecord>> ListAsync() =>
-        Task.FromResult<IReadOnlyCollection<DeviceRecord>>(_devices.Values.ToArray());
-
-    public Task<DeviceRecord> ApproveAsync(string deviceId)
-    {
-        var d = _devices.GetOrAdd(deviceId, id => new DeviceRecord { DeviceId = id });
-        d.IsApproved = true;
-        return Task.FromResult(d);
-    }
-
-    public Task<DeviceRecord> BlacklistAsync(string deviceId, string? reason)
-    {
-        var d = _devices.GetOrAdd(deviceId, id => new DeviceRecord { DeviceId = id });
-        d.IsBlacklisted = true;
-        d.BlacklistReason = reason;
-        return Task.FromResult(d);
-    }
-
-    public Task<bool> UnblacklistAsync(string deviceId)
-    {
-        if (!_devices.TryGetValue(deviceId, out var d)) return Task.FromResult(false);
-        d.IsBlacklisted = false;
-        return Task.FromResult(true);
-    }
+    public Task<ActivationResult> ActivateAsync(Guid userObjectId, string code, string? platform, string? deviceName) =>
+        Task.FromResult(new ActivationResult(ActivationOutcome.CodeInvalid));
 }
