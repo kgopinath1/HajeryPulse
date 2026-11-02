@@ -259,8 +259,8 @@ const getTrendLabels = (period: string, length: number): string[] => {
         {summary ? (
 
           <View style={styles.kpiGrid}>
-            <KpiTile label="Transactions" value={fmtInt(summary.transactions)} delta={{ value: `${fmtPct(summary.deltaTxns)}`, positive: true }} />
-            <KpiTile label="Check Avg." value={fmtKwdSmallVal(summary.basketSizeKwd)} delta={{ value: `${fmtPct(summary.deltaBasketSizeKwd, 1)}`, positive: true }} />
+            <KpiTile label="Transactions" value={fmtInt(summary.transactions)} delta={{ value: `${fmtPct(summary.deltaTxns)}`, positive: summary.deltaTxns >= 0 }} />
+            <KpiTile label="Check Avg." value={fmtKwdSmallVal(summary.basketSizeKwd)} delta={{ value: `${fmtPct(summary.deltaBasketSizeKwd, 1)}`, positive: summary.deltaBasketSizeKwd >= 0 }} />
             <KpiTile
               label="Active stores"
               value={

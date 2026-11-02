@@ -13,8 +13,7 @@
  * file alone will not work until that's done.
  */
 import { Platform } from 'react-native';
-import PublicClientApplication, { MSALPromptType, Ios_MSALWebviewType } from 'react-native-msal';
-import type { MSALInteractiveParams } from 'react-native-msal';
+import PublicClientApplication, { MSALPromptType } from 'react-native-msal';
 import type { MSALConfiguration, MSALResult, MSALAccount } from 'react-native-msal';
 
 const TENANT_ID = 'd1370f20-ac1a-4583-8b5e-f3022a041a2c';
@@ -96,28 +95,15 @@ function isUserCancelled(err: unknown): boolean {
  * auth automatically depending on tenant config). Returns a real Entra ID
  * access token scoped to the API — no custom code/verifier exchange needed.
  */
-export async function signInWithEntraId(options: { differentAccount?: boolean } = {}): Promise<EntraIdSession> {
+export async function signInWithEntraId(): Promise<EntraIdSession> {
   const client = await getClient();
-
-  // SELECT_ACCOUNT shows Microsoft's account picker ("Use another account").
-  // But when Microsoft Authenticator is installed it handles the sign-in as
-  // the broker and, holding one work account, signs straight in with it.
-  // "Sign in with a different account" therefore skips the broker: on iOS a
-  // non-default webview type makes MSAL use the web sign-in page instead
-  // (same as on a device without Authenticator); Android has no per-request
-  // switch, so it asks Microsoft to force a fresh login instead.
-  const params: MSALInteractiveParams = { scopes: [API_SCOPE], promptType: MSALPromptType.SELECT_ACCOUNT };
-  if (options.differentAccount) {
-    if (Platform.OS === 'ios') {
-      params.webviewParameters = { ios_webviewType: Ios_MSALWebviewType.AUTHENTICATION_SESSION };
-    } else {
-      params.promptType = MSALPromptType.LOGIN;
-    }
-  }
 
   let result: MSALResult | null;
   try {
-    result = await client.acquireToken(params);
+    // SELECT_ACCOUNT: without it, Microsoft Authenticator (the broker) signs
+    // straight in with whichever work account it already holds, leaving no
+    // way to use a different one (e.g. the App Store review demo account).
+    result = await client.acquireToken({ scopes: [API_SCOPE], promptType: MSALPromptType.SELECT_ACCOUNT });
   } catch (err) {
     if (isUserCancelled(err)) {
       throw new EntraSignInError('cancelled', 'Sign-in was cancelled.');

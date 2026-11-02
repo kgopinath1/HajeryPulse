@@ -17,10 +17,10 @@ export function LoginScreen(): React.JSX.Element {
   const { signIn } = useAuth();
   const [busy, setBusy] = useState(false);
 
-  const onSignIn = async (differentAccount = false) => {
+  const onSignIn = async () => {
     setBusy(true);
     try {
-      await signIn({ differentAccount });
+      await signIn();
     } catch (e) {
       // A deliberate cancel isn't an error worth interrupting the user
       // over — they already know they backed out, so just return them
@@ -61,17 +61,12 @@ export function LoginScreen(): React.JSX.Element {
       <Text style={styles.sub}>Sales · FnB · Pharmacy</Text>
 
       <View style={styles.actions}>
-        <TouchableOpacity style={styles.btn} onPress={() => onSignIn()} disabled={busy}>
+        <TouchableOpacity style={styles.btn} onPress={onSignIn} disabled={busy}>
           {busy ? (
             <ActivityIndicator color={theme.colors.bg0} />
           ) : (
             <Text style={styles.btnText}>Sign in with Microsoft</Text>
           )}
-        </TouchableOpacity>
-        {/* Microsoft Authenticator otherwise signs straight in with the one
-            account it holds — this opens the web sign-in page instead. */}
-        <TouchableOpacity onPress={() => onSignIn(true)} disabled={busy} style={styles.altBtn}>
-          <Text style={styles.altBtnText}>Sign in with a different account</Text>
         </TouchableOpacity>
         {/* <Text style={styles.hint}>You'll be prompted for FaceID / fingerprint after sign-in.</Text> */}
       </View>
@@ -116,8 +111,6 @@ const styles = StyleSheet.create({
     color: theme.colors.bg0, fontWeight: '700',
     fontSize: 14, letterSpacing: 0.4,
   },
-  altBtn: { marginTop: 16, padding: 8 },
-  altBtnText: { color: theme.colors.text1, fontSize: 13 },
   hint:   { color: theme.colors.text2, fontSize: 15, marginTop: 12, textAlign: 'center' },
   footer: {
     position: 'absolute', bottom: 30,
