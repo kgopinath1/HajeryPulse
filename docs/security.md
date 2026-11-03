@@ -50,7 +50,7 @@ Authorization is enforced at the controller level using policy-based authorizati
 
 Every mutating action and every dashboard load by an executive is logged to `audit.Event`. The middleware captures:
 
-- User key + Entra object ID + display name
+- User key + email + display name
 - Action type
 - Entity type/ID (e.g. `Approval/LPO-2026-1042`)
 - Before/after JSON for state changes

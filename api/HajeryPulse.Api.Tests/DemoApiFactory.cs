@@ -15,7 +15,7 @@ namespace HajeryPulse.Api.Tests;
 /// <summary>
 /// Runs the real API in memory with: a test auth scheme (the caller's Entra
 /// oid comes from the X-Test-Oid header), a device check where only
-/// <see cref="FakeDeviceActivation.ActiveKey"/> is activated, and a reporting
+/// <see cref="FakeDeviceTokens.ActiveToken"/> is activated, and a reporting
 /// DB connection string that points nowhere — so any request that reaches a
 /// real repository fails.
 /// </summary>
@@ -34,12 +34,12 @@ public sealed class DemoApiFactory : WebApplicationFactory<Program>
         builder.ConfigureTestServices(services =>
         {
             TestAuthHandler.Register(services);
-            services.RemoveAll<IDeviceActivationService>();
-            services.AddSingleton<IDeviceActivationService, FakeDeviceActivation>();
+            services.RemoveAll<IDeviceTokenService>();
+            services.AddSingleton<IDeviceTokenService, FakeDeviceTokens>();
         });
     }
 
-    /// <summary>A client signed in as <paramref name="oid"/>, sending no device key.</summary>
+    /// <summary>A client signed in as <paramref name="oid"/>, sending no device token.</summary>
     public HttpClient ClientFor(string? oid)
     {
         var client = CreateClient();
@@ -52,6 +52,7 @@ public sealed class TestAuthHandler : AuthenticationHandler<AuthenticationScheme
 {
     public const string SchemeName = "Test";
     public const string OidHeader = "X-Test-Oid";
+    public const string EmailHeader = "X-Test-Email";
 
     public static void Register(IServiceCollection services)
     {
@@ -73,24 +74,31 @@ public sealed class TestAuthHandler : AuthenticationHandler<AuthenticationScheme
         var oid = Request.Headers[OidHeader].ToString();
         if (string.IsNullOrEmpty(oid)) return Task.FromResult(AuthenticateResult.NoResult());
 
-        var identity = new ClaimsIdentity(new[]
+        var claims = new List<Claim>
         {
-            new Claim("http://schemas.microsoft.com/identity/claims/objectidentifier", oid),
-            new Claim(ClaimTypes.NameIdentifier, oid),
-            new Claim("name", "Test User"),
-        }, SchemeName);
+            new("http://schemas.microsoft.com/identity/claims/objectidentifier", oid),
+            new(ClaimTypes.NameIdentifier, oid),
+            new("name", "Test User"),
+        };
+        var email = Request.Headers[EmailHeader].ToString();
+        if (!string.IsNullOrEmpty(email)) claims.Add(new Claim("preferred_username", email));
+
+        var identity = new ClaimsIdentity(claims, SchemeName);
         return Task.FromResult(AuthenticateResult.Success(new AuthenticationTicket(new ClaimsPrincipal(identity), SchemeName)));
     }
 }
 
-/// <summary>Device check where only <see cref="ActiveKey"/> is activated, for any user.</summary>
-public sealed class FakeDeviceActivation : IDeviceActivationService
+/// <summary>Device check where every user is allowed and only <see cref="ActiveToken"/> is activated.</summary>
+public sealed class FakeDeviceTokens : IDeviceTokenService
 {
-    public const string ActiveKey = "test-active-device-key";
+    public const string ActiveToken = "TEST-TOKN";
 
-    public Task<DeviceKeyStatus> CheckAsync(Guid userObjectId, string? deviceKey) =>
-        Task.FromResult(deviceKey == ActiveKey ? DeviceKeyStatus.Active : DeviceKeyStatus.NotActivated);
+    public Task<DeviceCheck> CheckAsync(string? email, string? deviceId, string? token) =>
+        Task.FromResult(new DeviceCheck(token == ActiveToken ? DeviceState.Active : DeviceState.NotRegistered));
 
-    public Task<ActivationResult> ActivateAsync(Guid userObjectId, string code, string? platform, string? deviceName) =>
-        Task.FromResult(new ActivationResult(ActivationOutcome.CodeInvalid));
+    public Task<TokenRequestOutcome> RequestTokenAsync(string email, string? deviceId, string? platform, string? deviceName) =>
+        Task.FromResult(TokenRequestOutcome.Notified);
+
+    public Task<ActivationResult> ActivateAsync(string email, string? deviceId, string token) =>
+        Task.FromResult(new ActivationResult(ActivationOutcome.TokenInvalid));
 }

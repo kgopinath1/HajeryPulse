@@ -10,7 +10,7 @@
 import axios, { AxiosError, AxiosInstance, InternalAxiosRequestConfig } from 'axios';
 import { getStoredAccessToken, setAccessToken } from '@auth/tokens';
 import { acquireTokenSilently } from '@auth/entraId';
-import { getDeviceKey } from '@auth/deviceKey';
+import { getDeviceId, getDeviceToken } from '@auth/deviceToken';
 
 // Android routes through "localhost" too, same as iOS Simulator — but only
 // works because of `adb reverse tcp:50757 tcp:50757`, forwarding the
@@ -70,22 +70,47 @@ apiClient.interceptors.request.use(async (config: InternalAxiosRequestConfig) =>
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
-  const deviceKey = getDeviceKey();
-  if (deviceKey) {
-    config.headers['X-Device-Key'] = deviceKey;
+  const deviceId = getDeviceId();
+  if (deviceId) {
+    config.headers['X-Device-Id'] = deviceId;
+  }
+  const deviceToken = getDeviceToken();
+  if (deviceToken) {
+    config.headers['X-Device-Token'] = deviceToken;
   }
   return config;
 });
 
-export type DeviceActivationReason = 'DEVICE_NOT_ACTIVATED' | 'DEVICE_REVOKED';
+/** The API's 403 codes for user/device access (see DeviceControlMiddleware). */
+export type DeviceAccessCode = 'USER_NOT_ALLOWED' | 'DEVICE_NOT_ACTIVATED' | 'DEVICE_REVOKED';
 
-// AuthContext registers this so that a device revoked mid-session (activated
-// on another phone, or turned off by IT) switches straight to the activation
-// screen, whichever screen's request hit it.
-let onDeviceActivationRequired: ((reason: DeviceActivationReason) => void) | null = null;
+/**
+ * Where this device stands, sent with DEVICE_NOT_ACTIVATED / DEVICE_REVOKED.
+ * 'known' = already active for this user but the app has no token (e.g.
+ * after an Android reinstall) — the user enters the same token again.
+ */
+export interface DeviceAccessState {
+  state: 'none' | 'requested' | 'issued' | 'known' | 'revoked';
+  /** The user's other active devices — more than 0 means this is an extra device. */
+  activeDevices: number;
+}
 
-export function setDeviceActivationHandler(handler: ((reason: DeviceActivationReason) => void) | null): void {
-  onDeviceActivationRequired = handler;
+export interface DeviceAccessIssue {
+  code: DeviceAccessCode;
+  message: string;
+  device: DeviceAccessState | null;
+}
+
+export function isDeviceAccessCode(code: string | undefined): code is DeviceAccessCode {
+  return code === 'USER_NOT_ALLOWED' || code === 'DEVICE_NOT_ACTIVATED' || code === 'DEVICE_REVOKED';
+}
+
+// AuthContext registers this so that a user or device turned off mid-session
+// switches straight to the right screen, whichever screen's request hit it.
+let onDeviceAccessIssue: ((issue: DeviceAccessIssue) => void) | null = null;
+
+export function setDeviceAccessHandler(handler: ((issue: DeviceAccessIssue) => void) | null): void {
+  onDeviceAccessIssue = handler;
 }
 
 let refreshing: Promise<string | null> | null = null;
@@ -127,8 +152,8 @@ apiClient.interceptors.response.use(
       traceId: body?.error?.traceId,
       status,
     };
-    if (status === 403 && (apiError.code === 'DEVICE_NOT_ACTIVATED' || apiError.code === 'DEVICE_REVOKED')) {
-      onDeviceActivationRequired?.(apiError.code);
+    if (status === 403 && isDeviceAccessCode(apiError.code)) {
+      onDeviceAccessIssue?.({ code: apiError.code, message: apiError.message, device: body?.error?.device ?? null });
     }
     return Promise.reject(apiError);
   },

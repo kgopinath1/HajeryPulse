@@ -1,207 +1,268 @@
 /* ============================================================================
-   Device activation — procedures for IT (run from SSMS).
+   Users and device tokens — procedures for IT (run from SSMS).
 
-     -- New activation code (valid 48 hours, single use). Cancels any unused
-     -- code the user already had. Give the code to the user.
-     EXEC app.usp_Device_GenerateActivationCode @Email = N'someone@hajery.com';
+     -- Give someone access (or re-enable them). Only users here, with
+     -- IsActive = 1, get past the app's sign-in.
+     EXEC app.usp_User_Add @Email = N'someone@hajery.com', @DisplayName = N'Some One';
 
-     -- First code for someone not in dim.[User] yet: also pass their Entra
-     -- Object ID (and name). They're added to dim.[User], so from then on
-     -- the email alone works everywhere.
-     EXEC app.usp_Device_GenerateActivationCode @Email = N'someone@hajery.com',
-          @UserObjectId = '...', @DisplayName = N'Some One';
+     -- Take access away. Also turns off all their devices.
+     EXEC app.usp_User_SetActive @Email = N'someone@hajery.com', @IsActive = 0;
 
-     -- A user's devices and codes (no arguments = every active device):
+     -- Token requests waiting for IT (the email IT receives has the same ID):
+     EXEC app.usp_Device_Requests;
+
+     -- Issue a token for a request (valid 2 hours to enter). Give the token
+     -- to the user. Running it again replaces the earlier token.
+     EXEC app.usp_Device_IssueToken @RequestId = 12;
+
+     -- A user's devices (no arguments = every active device):
      EXEC app.usp_Device_List @Email = N'someone@hajery.com';
 
-     -- Lost/stolen phone, or leaver: turn off their active device.
-     EXEC app.usp_Device_Revoke @Email = N'someone@hajery.com', @Reason = N'Phone lost';
+     -- Lost/stolen phone: turn off one device (ID from usp_Device_List), or
+     -- all of a user's devices.
+     EXEC app.usp_Device_Deactivate @DeviceTokenId = 12, @Reason = N'Phone lost';
+     EXEC app.usp_Device_Deactivate @Email = N'someone@hajery.com';
 
-     -- Withdraw a code that hasn't been used yet.
-     EXEC app.usp_Device_CancelCodes @Email = N'someone@hajery.com';
+     -- Who gets the "Get token" emails (takes effect immediately):
+     EXEC app.usp_Device_Recipients;
+     EXEC app.usp_Device_SetRecipient @Email = N'someone@hajery.com';                  -- add
+     EXEC app.usp_Device_SetRecipient @Email = N'someone@hajery.com', @IsActive = 0;   -- stop
 
-   Codes use 8 characters from an alphabet without look-alikes (no 0/O, 1/I),
-   shown as XXXX-XXXX. Only the SHA-256 hash is stored; the API hashes what
-   the user types the same way. A code locks after 5 wrong attempts.
+   A user can have up to 2 active devices. A token belongs to one device:
+   after a reinstall the same token works again (iOS keeps it; on Android
+   the user re-enters it), so keep it like a password. Tokens use 8 characters from an
+   alphabet without look-alikes (no 0/O, 1/I), shown as XXXX-XXXX. Only the
+   SHA-256 hash is stored; the API hashes what the user types the same way.
+   A token locks after 5 wrong attempts.
    ============================================================================ */
 USE HajeryPulse_Reporting;
 GO
 
-/* Looks up a user's Entra Object ID by email in dim.[User]. */
-CREATE OR ALTER FUNCTION app.fn_Device_ResolveUser (@Email NVARCHAR(255))
-RETURNS UNIQUEIDENTIFIER
+-- Previous design (activation codes).
+DROP PROCEDURE IF EXISTS app.usp_Device_GenerateActivationCode;
+DROP PROCEDURE IF EXISTS app.usp_Device_Revoke;
+DROP PROCEDURE IF EXISTS app.usp_Device_CancelCodes;
+DROP FUNCTION  IF EXISTS app.fn_Device_ResolveUser;
+GO
+
+CREATE OR ALTER PROCEDURE app.usp_User_Add
+    @Email       NVARCHAR(255),
+    @DisplayName NVARCHAR(200) = NULL
 AS
 BEGIN
-    RETURN (SELECT TOP 1 EntraObjectId FROM dim.[User] WHERE Email = @Email AND IsActive = 1);
+    SET NOCOUNT ON;
+
+    SET @Email = LOWER(LTRIM(RTRIM(@Email)));
+    IF @Email IS NULL OR @Email NOT LIKE N'_%@_%'
+        THROW 50001, 'Pass the user''s email address as @Email.', 1;
+    SET @DisplayName = NULLIF(LTRIM(RTRIM(@DisplayName)), N'');
+
+    IF EXISTS (SELECT 1 FROM dim.[User] WHERE Email = @Email)
+        UPDATE dim.[User]
+           SET IsActive = 1, DisplayName = COALESCE(@DisplayName, DisplayName)
+         WHERE Email = @Email;
+    ELSE
+        INSERT INTO dim.[User] (Email, DisplayName) VALUES (@Email, COALESCE(@DisplayName, @Email));
+
+    SELECT UserKey, Email, DisplayName, IsActive FROM dim.[User] WHERE Email = @Email;
 END;
 GO
 
-/* One-off: users who got a code before GenerateActivationCode added them to dim.[User]. */
-INSERT INTO dim.[User] (EntraObjectId, Email, DisplayName)
-SELECT c.UserObjectId, MAX(c.UserEmail), MAX(c.UserEmail)
-  FROM app.DeviceActivationCode c
- WHERE c.UserEmail IS NOT NULL
-   AND NOT EXISTS (SELECT 1 FROM dim.[User] u WHERE u.EntraObjectId = c.UserObjectId)
- GROUP BY c.UserObjectId;
-GO
-
-CREATE OR ALTER PROCEDURE app.usp_Device_GenerateActivationCode
-    @Email        NVARCHAR(255)    = NULL,
-    @UserObjectId UNIQUEIDENTIFIER = NULL,
-    @DisplayName  NVARCHAR(200)    = NULL,   -- only used when adding the user to dim.[User]
-    @ValidHours   INT              = 48
+CREATE OR ALTER PROCEDURE app.usp_User_SetActive
+    @Email    NVARCHAR(255),
+    @IsActive BIT
 AS
 BEGIN
     SET NOCOUNT ON;
     SET XACT_ABORT ON;
 
-    IF @Email IS NULL AND @UserObjectId IS NULL
-        THROW 50001, 'Pass @Email, or @UserObjectId (the user''s Object ID from Entra ID).', 1;
-    IF @ValidHours NOT BETWEEN 1 AND 168
-        THROW 50002, '@ValidHours must be between 1 and 168.', 1;
+    IF NOT EXISTS (SELECT 1 FROM dim.[User] WHERE Email = @Email)
+        THROW 50003, 'No user with that email in dim.[User].', 1;
 
-    DECLARE @ExistingOid UNIQUEIDENTIFIER = app.fn_Device_ResolveUser(@Email);
-    IF @UserObjectId IS NOT NULL AND @ExistingOid IS NOT NULL AND @ExistingOid <> @UserObjectId
-        THROW 50004, 'That email already belongs to a different Object ID in dim.[User]. Check the Object ID in Entra ID.', 1;
+    BEGIN TRANSACTION;
+        UPDATE dim.[User] SET IsActive = @IsActive WHERE Email = @Email;
 
-    SET @UserObjectId = COALESCE(@UserObjectId, @ExistingOid);
-    IF @UserObjectId IS NULL
-        THROW 50003, 'No user with that email in dim.[User]. Pass @UserObjectId (the user''s Object ID from Entra ID) as well, and they''ll be added.', 1;
+        DECLARE @DevicesDeactivated INT = 0;
+        IF @IsActive = 0
+        BEGIN
+            UPDATE app.DeviceToken
+               SET Status = 'Inactive', InactiveUtc = SYSUTCDATETIME(), InactiveReason = N'User deactivated'
+             WHERE UserEmail = @Email AND Status <> 'Inactive';
+            SET @DevicesDeactivated = @@ROWCOUNT;
+        END;
+    COMMIT;
 
-    SET @Email = COALESCE(@Email, (SELECT TOP 1 Email FROM dim.[User] WHERE EntraObjectId = @UserObjectId));
+    SELECT Email, IsActive, DevicesDeactivated = @DevicesDeactivated FROM dim.[User] WHERE Email = @Email;
+END;
+GO
+
+CREATE OR ALTER PROCEDURE app.usp_Device_Requests
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    SELECT RequestId       = t.DeviceTokenId,
+           t.UserEmail, u.DisplayName, t.Platform, t.DeviceName,
+           Status          = CASE
+                                 WHEN t.Status = 'Requested'               THEN 'Waiting for IT'
+                                 WHEN t.FailedAttempts >= 5                THEN 'Token locked'
+                                 WHEN t.TokenExpiresUtc < SYSUTCDATETIME() THEN 'Token expired'
+                                 ELSE 'Token issued'
+                             END,
+           ActiveDevices   = (SELECT COUNT(*) FROM app.DeviceToken a WHERE a.UserEmail = t.UserEmail AND a.Status = 'Active'),
+           RequestedKuwait = DATEADD(HOUR, 3, t.RequestedUtc),
+           IssuedKuwait    = DATEADD(HOUR, 3, t.IssuedUtc),
+           ExpiresKuwait   = DATEADD(HOUR, 3, t.TokenExpiresUtc)
+      FROM app.DeviceToken t
+      LEFT JOIN dim.[User] u ON u.Email = t.UserEmail
+     WHERE t.Status IN ('Requested', 'Issued')
+     ORDER BY t.RequestedUtc DESC;
+END;
+GO
+
+CREATE OR ALTER PROCEDURE app.usp_Device_IssueToken
+    @RequestId        INT,
+    @ValidHours       INT = 2,
+    @MaxActiveDevices INT = 2
+AS
+BEGIN
+    SET NOCOUNT ON;
+    SET XACT_ABORT ON;
+
+    IF @ValidHours NOT BETWEEN 1 AND 48
+        THROW 50002, '@ValidHours must be between 1 and 48.', 1;
+
+    DECLARE @Email NVARCHAR(255), @Status VARCHAR(10), @Message NVARCHAR(2048);
+    SELECT @Email = UserEmail, @Status = Status FROM app.DeviceToken WHERE DeviceTokenId = @RequestId;
+
     IF @Email IS NULL
-        THROW 50005, 'This user isn''t in dim.[User] yet. Pass @Email as well so they can be added.', 1;
+        THROW 50011, 'No request with that ID. EXEC app.usp_Device_Requests lists the open ones.', 1;
+    IF @Status = 'Active'
+        THROW 50012, 'That device is already active. If the user lost the token, they tap "Get token" again, which opens a new request for it.', 1;
+    IF @Status = 'Inactive'
+        THROW 50013, 'That request was turned off. The user needs to tap "Get token" again.', 1;
+    IF NOT EXISTS (SELECT 1 FROM dim.[User] WHERE Email = @Email AND IsActive = 1)
+    BEGIN
+        SET @Message = CONCAT(@Email, N' isn''t an active user. Enable them first: EXEC app.usp_User_Add @Email = N''', @Email, N''';');
+        THROW 50014, @Message, 1;
+    END;
+    IF (SELECT COUNT(*) FROM app.DeviceToken WHERE UserEmail = @Email AND Status = 'Active') >= @MaxActiveDevices
+    BEGIN
+        SET @Message = CONCAT(@Email, N' already has ', @MaxActiveDevices, N' active devices. Turn one off first: EXEC app.usp_Device_List @Email = N''', @Email,
+                              N'''; then EXEC app.usp_Device_Deactivate @DeviceTokenId = <ID>;');
+        THROW 50010, @Message, 1;
+    END;
 
     -- 8 random characters from a 32-letter alphabet. 256 is a multiple of 32,
     -- so byte % 32 picks every letter with equal probability.
-    DECLARE @Alphabet CHAR(32)       = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-    DECLARE @Random   VARBINARY(8)   = CRYPT_GEN_RANDOM(8);
-    DECLARE @Code     VARCHAR(8)     = '';
-    DECLARE @i        INT            = 1;
+    DECLARE @Alphabet CHAR(32)     = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+    DECLARE @Random   VARBINARY(8) = CRYPT_GEN_RANDOM(8);
+    DECLARE @Token    VARCHAR(8)   = '';
+    DECLARE @i        INT          = 1;
     WHILE @i <= 8
     BEGIN
-        SET @Code += SUBSTRING(@Alphabet, CAST(SUBSTRING(@Random, @i, 1) AS INT) % 32 + 1, 1);
+        SET @Token += SUBSTRING(@Alphabet, CAST(SUBSTRING(@Random, @i, 1) AS INT) % 32 + 1, 1);
         SET @i += 1;
     END;
 
     DECLARE @Now     DATETIME2(0) = SYSUTCDATETIME();
     DECLARE @Expires DATETIME2(0) = DATEADD(HOUR, @ValidHours, @Now);
 
-    BEGIN TRANSACTION;
-        -- Add new users to dim.[User] so email lookups (and audit.Event) work for them.
-        IF NOT EXISTS (SELECT 1 FROM dim.[User] WHERE EntraObjectId = @UserObjectId)
-            INSERT INTO dim.[User] (EntraObjectId, Email, DisplayName)
-            VALUES (@UserObjectId, @Email, COALESCE(NULLIF(LTRIM(RTRIM(@DisplayName)), N''), @Email));
+    UPDATE app.DeviceToken
+       SET Status = 'Issued', TokenHash = HASHBYTES('SHA2_256', @Token), FailedAttempts = 0,
+           IssuedUtc = @Now, IssuedBy = SUSER_SNAME(), TokenExpiresUtc = @Expires
+     WHERE DeviceTokenId = @RequestId AND Status IN ('Requested', 'Issued');
 
-        UPDATE app.DeviceActivationCode
-           SET CancelledUtc = @Now
-         WHERE UserObjectId = @UserObjectId AND RedeemedUtc IS NULL AND CancelledUtc IS NULL;
-
-        INSERT INTO app.DeviceActivationCode (UserObjectId, UserEmail, CodeHash, CreatedUtc, ExpiresUtc)
-        VALUES (@UserObjectId, @Email, HASHBYTES('SHA2_256', @Code), @Now, @Expires);
-    COMMIT;
-
-    SELECT ActivationCode  = LEFT(@Code, 4) + '-' + RIGHT(@Code, 4),
-           UserEmail       = @Email,
-           UserObjectId    = @UserObjectId,
-           ExpiresKuwait   = DATEADD(HOUR, 3, @Expires),
-           ExpiresUtc      = @Expires;
+    SELECT Token         = LEFT(@Token, 4) + '-' + RIGHT(@Token, 4),
+           t.UserEmail, u.DisplayName, t.Platform, t.DeviceName,
+           ExpiresKuwait = DATEADD(HOUR, 3, @Expires),
+           ExpiresUtc    = @Expires
+      FROM app.DeviceToken t
+      LEFT JOIN dim.[User] u ON u.Email = t.UserEmail
+     WHERE t.DeviceTokenId = @RequestId;
 END;
 GO
 
 CREATE OR ALTER PROCEDURE app.usp_Device_List
-    @Email        NVARCHAR(255)    = NULL,
-    @UserObjectId UNIQUEIDENTIFIER = NULL
+    @Email NVARCHAR(255) = NULL
 AS
 BEGIN
     SET NOCOUNT ON;
 
-    IF @Email IS NULL AND @UserObjectId IS NULL
-    BEGIN
-        -- Every active device.
-        SELECT d.UserObjectId, UserEmail = u.Email, u.DisplayName, d.Platform, d.DeviceName,
-               ActivatedKuwait = DATEADD(HOUR, 3, d.ActivatedUtc),
-               LastSeenKuwait  = DATEADD(HOUR, 3, d.LastSeenUtc)
-          FROM app.UserDevice d
-          LEFT JOIN dim.[User] u ON u.EntraObjectId = d.UserObjectId
-         WHERE d.RevokedUtc IS NULL
-         ORDER BY d.LastSeenUtc DESC;
-        RETURN;
-    END;
-
-    SET @UserObjectId = COALESCE(@UserObjectId, app.fn_Device_ResolveUser(@Email));
-    IF @UserObjectId IS NULL
-        THROW 50003, 'No user with that email in dim.[User]. Pass @UserObjectId (the user''s Object ID from Entra ID) instead.', 1;
-
-    SELECT UserDeviceId, Platform, DeviceName,
-           Status          = CASE WHEN RevokedUtc IS NULL THEN 'Active' ELSE 'Revoked' END,
-           ActivatedKuwait = DATEADD(HOUR, 3, ActivatedUtc),
-           LastSeenKuwait  = DATEADD(HOUR, 3, LastSeenUtc),
-           RevokedKuwait   = DATEADD(HOUR, 3, RevokedUtc),
-           RevokedReason
-      FROM app.UserDevice
-     WHERE UserObjectId = @UserObjectId
-     ORDER BY ActivatedUtc DESC;
-
-    SELECT CodeId, UserEmail, CreatedBy,
-           Status = CASE
-                        WHEN RedeemedUtc  IS NOT NULL THEN 'Used'
-                        WHEN CancelledUtc IS NOT NULL THEN 'Cancelled'
-                        WHEN FailedAttempts >= 5      THEN 'Locked'
-                        WHEN ExpiresUtc < SYSUTCDATETIME() THEN 'Expired'
-                        ELSE 'Waiting'
-                    END,
-           FailedAttempts,
-           CreatedKuwait  = DATEADD(HOUR, 3, CreatedUtc),
-           ExpiresKuwait  = DATEADD(HOUR, 3, ExpiresUtc),
-           RedeemedKuwait = DATEADD(HOUR, 3, RedeemedUtc)
-      FROM app.DeviceActivationCode
-     WHERE UserObjectId = @UserObjectId
-     ORDER BY CreatedUtc DESC, CodeId DESC;
+    SELECT DeviceTokenId, t.UserEmail, u.DisplayName, t.Platform, t.DeviceName, t.DeviceId,
+           Status          = CASE
+                                 WHEN t.Status = 'Requested'                                    THEN 'Waiting for IT'
+                                 WHEN t.Status = 'Issued' AND t.FailedAttempts >= 5             THEN 'Token locked'
+                                 WHEN t.Status = 'Issued' AND t.TokenExpiresUtc < SYSUTCDATETIME() THEN 'Token expired'
+                                 WHEN t.Status = 'Issued'                                       THEN 'Token issued'
+                                 ELSE t.Status
+                             END,
+           RequestedKuwait = DATEADD(HOUR, 3, t.RequestedUtc),
+           ActivatedKuwait = DATEADD(HOUR, 3, t.ActivatedUtc),
+           LastSeenKuwait  = DATEADD(HOUR, 3, t.LastSeenUtc),
+           InactiveKuwait  = DATEADD(HOUR, 3, t.InactiveUtc),
+           t.InactiveReason
+      FROM app.DeviceToken t
+      LEFT JOIN dim.[User] u ON u.Email = t.UserEmail
+     WHERE (@Email IS NULL AND t.Status = 'Active') OR t.UserEmail = @Email
+     ORDER BY t.UserEmail, t.DeviceTokenId DESC;
 END;
 GO
 
-CREATE OR ALTER PROCEDURE app.usp_Device_Revoke
-    @Email        NVARCHAR(255)    = NULL,
-    @UserObjectId UNIQUEIDENTIFIER = NULL,
-    @Reason       NVARCHAR(200)    = N'Revoked by IT'
+CREATE OR ALTER PROCEDURE app.usp_Device_Deactivate
+    @DeviceTokenId INT           = NULL,
+    @Email         NVARCHAR(255) = NULL,
+    @Reason        NVARCHAR(200) = N'Turned off by IT'
 AS
 BEGIN
     SET NOCOUNT ON;
 
-    IF @Email IS NULL AND @UserObjectId IS NULL
-        THROW 50001, 'Pass @Email, or @UserObjectId (the user''s Object ID from Entra ID).', 1;
-    SET @UserObjectId = COALESCE(@UserObjectId, app.fn_Device_ResolveUser(@Email));
-    IF @UserObjectId IS NULL
-        THROW 50003, 'No user with that email in dim.[User]. Pass @UserObjectId (the user''s Object ID from Entra ID) instead.', 1;
+    IF @DeviceTokenId IS NULL AND @Email IS NULL
+        THROW 50001, 'Pass @DeviceTokenId (from app.usp_Device_List) for one device, or @Email for all of a user''s devices.', 1;
 
-    UPDATE app.UserDevice
-       SET RevokedUtc = SYSUTCDATETIME(), RevokedReason = @Reason
-     WHERE UserObjectId = @UserObjectId AND RevokedUtc IS NULL;
+    UPDATE app.DeviceToken
+       SET Status = 'Inactive', InactiveUtc = SYSUTCDATETIME(), InactiveReason = @Reason
+     WHERE Status <> 'Inactive'
+       AND (DeviceTokenId = @DeviceTokenId OR (@DeviceTokenId IS NULL AND UserEmail = @Email));
 
-    SELECT DevicesRevoked = @@ROWCOUNT;
+    SELECT DevicesDeactivated = @@ROWCOUNT;
 END;
 GO
 
-CREATE OR ALTER PROCEDURE app.usp_Device_CancelCodes
-    @Email        NVARCHAR(255)    = NULL,
-    @UserObjectId UNIQUEIDENTIFIER = NULL
+CREATE OR ALTER PROCEDURE app.usp_Device_Recipients
 AS
 BEGIN
     SET NOCOUNT ON;
 
-    IF @Email IS NULL AND @UserObjectId IS NULL
-        THROW 50001, 'Pass @Email, or @UserObjectId (the user''s Object ID from Entra ID).', 1;
-    SET @UserObjectId = COALESCE(@UserObjectId, app.fn_Device_ResolveUser(@Email));
-    IF @UserObjectId IS NULL
-        THROW 50003, 'No user with that email in dim.[User]. Pass @UserObjectId (the user''s Object ID from Entra ID) instead.', 1;
-
-    UPDATE app.DeviceActivationCode
-       SET CancelledUtc = SYSUTCDATETIME()
-     WHERE UserObjectId = @UserObjectId AND RedeemedUtc IS NULL AND CancelledUtc IS NULL;
-
-    SELECT CodesCancelled = @@ROWCOUNT;
+    SELECT Email, IsActive, ChangedBy, ChangedKuwait = DATEADD(HOUR, 3, ChangedUtc)
+      FROM app.DeviceTokenRecipient
+     ORDER BY IsActive DESC, Email;
 END;
 GO
 
-PRINT 'Device activation procedures created.';
+CREATE OR ALTER PROCEDURE app.usp_Device_SetRecipient
+    @Email    NVARCHAR(255),
+    @IsActive BIT = 1
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    SET @Email = LOWER(LTRIM(RTRIM(@Email)));
+    IF @Email IS NULL OR @Email NOT LIKE N'_%@_%._%'
+        THROW 50001, 'Pass an email address as @Email.', 1;
+
+    IF EXISTS (SELECT 1 FROM app.DeviceTokenRecipient WHERE Email = @Email)
+        UPDATE app.DeviceTokenRecipient
+           SET IsActive = @IsActive, ChangedBy = SUSER_SNAME(), ChangedUtc = SYSUTCDATETIME()
+         WHERE Email = @Email;
+    ELSE
+        INSERT INTO app.DeviceTokenRecipient (Email, IsActive) VALUES (@Email, @IsActive);
+
+    IF NOT EXISTS (SELECT 1 FROM app.DeviceTokenRecipient WHERE IsActive = 1)
+        PRINT 'Warning: nobody is emailed about token requests now. They still appear in EXEC app.usp_Device_Requests.';
+
+    EXEC app.usp_Device_Recipients;
+END;
+GO
+
+PRINT 'User and device token procedures created.';

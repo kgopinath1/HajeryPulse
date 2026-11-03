@@ -76,8 +76,7 @@ Static reference tables seeded once.
 | Column | Type |
 |--------|------|
 | UserKey       | INT PK IDENTITY |
-| EntraObjectId | UNIQUEIDENTIFIER UNIQUE |
-| Email         | NVARCHAR(255) |
+| Email         | NVARCHAR(255) UNIQUE (Entra sign-in name) |
 | DisplayName   | NVARCHAR(200) |
 | Roles         | NVARCHAR(MAX) — JSON array |
 | ScopedBuCodes | NVARCHAR(MAX) — JSON array of BU codes user can see |

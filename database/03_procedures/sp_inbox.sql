@@ -9,7 +9,7 @@ GO
 -- Filters by user's ScopedBuCodes (JSON array in dim.User).
 -- ============================================================================
 CREATE OR ALTER PROCEDURE app.sp_GetInbox
-    @UserEntraId UNIQUEIDENTIFIER,
+    @UserEmail   NVARCHAR(255),
     @Status      NVARCHAR(20) = 'Pending',
     @Limit       INT = 50
 AS
@@ -18,7 +18,7 @@ BEGIN
 
     DECLARE @userKey INT, @scopedBuJson NVARCHAR(MAX);
     SELECT @userKey = UserKey, @scopedBuJson = ScopedBuCodes
-    FROM dim.[User] WHERE EntraObjectId = @UserEntraId AND IsActive = 1;
+    FROM dim.[User] WHERE Email = @UserEmail AND IsActive = 1;
 
     IF @userKey IS NULL
     BEGIN
@@ -64,7 +64,7 @@ GO
 -- Returns: 1) request header, 2) line items, 3) attachments, 4) history
 -- ============================================================================
 CREATE OR ALTER PROCEDURE app.sp_GetApprovalDetail
-    @UserEntraId UNIQUEIDENTIFIER,
+    @UserEmail   NVARCHAR(255),
     @RequestId   NVARCHAR(40)
 AS
 BEGIN
@@ -111,7 +111,7 @@ GO
 -- All wrap the same audit-friendly transactional update.
 -- ============================================================================
 CREATE OR ALTER PROCEDURE app.sp_ApproveRequest
-    @UserEntraId UNIQUEIDENTIFIER,
+    @UserEmail   NVARCHAR(255),
     @RequestId   NVARCHAR(40),
     @Comment     NVARCHAR(MAX) = NULL
 AS
@@ -120,7 +120,7 @@ BEGIN
     SET XACT_ABORT ON;
 
     BEGIN TRAN;
-        DECLARE @userKey INT = (SELECT UserKey FROM dim.[User] WHERE EntraObjectId = @UserEntraId);
+        DECLARE @userKey INT = (SELECT UserKey FROM dim.[User] WHERE Email = @UserEmail);
         IF @userKey IS NULL THROW 51010, 'Unknown user', 1;
 
         UPDATE app.ApprovalRequest
@@ -142,7 +142,7 @@ END;
 GO
 
 CREATE OR ALTER PROCEDURE app.sp_RejectRequest
-    @UserEntraId UNIQUEIDENTIFIER,
+    @UserEmail   NVARCHAR(255),
     @RequestId   NVARCHAR(40),
     @Comment     NVARCHAR(MAX) = NULL
 AS
@@ -151,7 +151,7 @@ BEGIN
     SET XACT_ABORT ON;
 
     BEGIN TRAN;
-        DECLARE @userKey INT = (SELECT UserKey FROM dim.[User] WHERE EntraObjectId = @UserEntraId);
+        DECLARE @userKey INT = (SELECT UserKey FROM dim.[User] WHERE Email = @UserEmail);
         IF @userKey IS NULL THROW 51010, 'Unknown user', 1;
 
         UPDATE app.ApprovalRequest
@@ -173,7 +173,7 @@ END;
 GO
 
 CREATE OR ALTER PROCEDURE app.sp_ClarifyRequest
-    @UserEntraId UNIQUEIDENTIFIER,
+    @UserEmail   NVARCHAR(255),
     @RequestId   NVARCHAR(40),
     @Question    NVARCHAR(MAX)
 AS
@@ -182,7 +182,7 @@ BEGIN
     SET XACT_ABORT ON;
 
     BEGIN TRAN;
-        DECLARE @userKey INT = (SELECT UserKey FROM dim.[User] WHERE EntraObjectId = @UserEntraId);
+        DECLARE @userKey INT = (SELECT UserKey FROM dim.[User] WHERE Email = @UserEmail);
         IF @userKey IS NULL THROW 51010, 'Unknown user', 1;
 
         UPDATE app.ApprovalRequest

@@ -84,7 +84,9 @@ builder.Services.AddScoped<IFinanceService, FinanceService>();
 builder.Services.AddScoped<IInboxService, InboxService>();
 builder.Services.AddScoped<IHomeService,    HomeService>();
 builder.Services.AddMemoryCache();
-builder.Services.AddScoped<IDeviceActivationService, DeviceActivationService>();
+builder.Services.AddHttpClient();
+builder.Services.AddSingleton<IDeviceRequestNotifier, GraphMailDeviceRequestNotifier>();
+builder.Services.AddScoped<IDeviceTokenService, DeviceTokenService>();
 
 // ---------- API + Swagger ----------
 builder.Services.AddControllers(options => options.Filters.Add<QueryValidationFilter>());
@@ -145,6 +147,7 @@ static void DecryptProtectedSecrets(ConfigurationManager config)
     }
 
     Decrypt("ConnectionStrings:ReportingDb_Encrypted", "ConnectionStrings:ReportingDb");
+    Decrypt("DeviceTokens:MailClientSecret_Encrypted", "DeviceTokens:MailClientSecret");
 
     if (overrides.Count > 0) config.AddInMemoryCollection(overrides);
 }

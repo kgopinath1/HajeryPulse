@@ -152,8 +152,7 @@ GO
 IF OBJECT_ID(N'dim.[User]', N'U') IS NULL
 CREATE TABLE dim.[User] (
     UserKey         INT IDENTITY(1,1) NOT NULL PRIMARY KEY,
-    EntraObjectId   UNIQUEIDENTIFIER  NOT NULL UNIQUE,
-    Email           NVARCHAR(255)     NOT NULL,
+    Email           NVARCHAR(255)     NOT NULL UNIQUE,  -- Entra sign-in name
     DisplayName     NVARCHAR(200)     NOT NULL,
     Roles           NVARCHAR(MAX)     NOT NULL DEFAULT N'[]',  -- JSON
     ScopedBuCodes   NVARCHAR(MAX)     NOT NULL DEFAULT N'[]',  -- JSON

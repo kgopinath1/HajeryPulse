@@ -1,48 +1,61 @@
+using HajeryPulse.Api.Auth;
 using HajeryPulse.Api.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.Identity.Web;
 
 namespace HajeryPulse.Api.Controllers;
 
-public sealed record ActivateDeviceRequest(string? Code, string? Platform, string? DeviceName);
-public sealed record ActivateDeviceResponse(string DeviceKey);
+public sealed record RequestTokenRequest(string? DeviceId, string? Platform, string? DeviceName);
+public sealed record RequestTokenResponse(bool ItNotified);
+public sealed record ActivateDeviceRequest(string? DeviceId, string? Token);
 
 /// <summary>
-/// Exchanges the activation code IT gave the user for this device's key.
-/// Exempt from DeviceControlMiddleware (the caller has no key yet), but the
-/// code only works for the signed-in user it was generated for.
+/// "Get token" and token entry for a device. DeviceControlMiddleware
+/// lets only active users (dim.[User]) reach these, without a device token.
 /// </summary>
 [ApiController]
 [Authorize]
 [Route("api/v1/device")]
 public sealed class DeviceController : ControllerBase
 {
-    private readonly IDeviceActivationService _devices;
+    private readonly IDeviceTokenService _devices;
 
-    public DeviceController(IDeviceActivationService devices) => _devices = devices;
+    public DeviceController(IDeviceTokenService devices) => _devices = devices;
+
+    /// <summary>Records a token request for this device (the phone's own ID) and emails IT.</summary>
+    [HttpPost("request-token")]
+    public async Task<ActionResult<RequestTokenResponse>> RequestToken([FromBody] RequestTokenRequest req)
+    {
+        if (User.GetEmail() is not { } email) return Forbid();
+        var outcome = await _devices.RequestTokenAsync(email, req.DeviceId, req.Platform, req.DeviceName);
+        if (outcome == TokenRequestOutcome.InvalidDeviceId)
+            return Error("DEVICE_ID_INVALID", "This device couldn't be identified. Please update the app and try again.");
+        return Ok(new RequestTokenResponse(outcome != TokenRequestOutcome.NotifyFailed));
+    }
 
     [HttpPost("activate")]
-    public async Task<ActionResult<ActivateDeviceResponse>> Activate([FromBody] ActivateDeviceRequest req)
+    public async Task<ActionResult> Activate([FromBody] ActivateDeviceRequest req)
     {
-        if (string.IsNullOrWhiteSpace(req.Code))
-            return Error("CODE_REQUIRED", "Enter the activation code from IT.");
-        if (!Guid.TryParse(User.GetObjectId(), out var oid))
-            return Error("CODE_INVALID", "This code isn't valid for your account.");
+        if (string.IsNullOrWhiteSpace(req.Token))
+            return Error("TOKEN_REQUIRED", "Enter the token from IT.");
 
-        var result = await _devices.ActivateAsync(oid, req.Code, req.Platform, req.DeviceName);
+        if (User.GetEmail() is not { } email) return Forbid();
+
+        var result = await _devices.ActivateAsync(email, req.DeviceId, req.Token);
         return result.Outcome switch
         {
-            ActivationOutcome.Activated => Ok(new ActivateDeviceResponse(result.DeviceKey!)),
-            ActivationOutcome.CodeExpired => Error("CODE_EXPIRED",
-                "This code has expired. Ask IT for a new one."),
-            ActivationOutcome.CodeUsed => Error("CODE_USED",
-                "This code has already been used. Ask IT for a new one."),
+            ActivationOutcome.Activated => NoContent(),
+            ActivationOutcome.NotIssued => Error("TOKEN_NOT_ISSUED",
+                "IT hasn't issued a token for this device yet. Tap \"Get token\" if you haven't already."),
+            ActivationOutcome.TokenExpired => Error("TOKEN_EXPIRED",
+                "This token has expired. Tap \"Get token\" to ask IT for a new one."),
             ActivationOutcome.TooManyAttempts => Error("TOO_MANY_ATTEMPTS",
-                "Too many incorrect attempts. Ask IT for a new code."),
-            _ => Error("CODE_INVALID", result.AttemptsLeft > 0
-                ? $"That code isn't right. Check it and try again ({result.AttemptsLeft} {(result.AttemptsLeft == 1 ? "attempt" : "attempts")} left)."
-                : "That code isn't valid for your account. Check it, or ask IT for a new one."),
+                "Too many incorrect attempts. Tap \"Get token\" to ask IT for a new one."),
+            ActivationOutcome.DeviceLimit => Error("DEVICE_LIMIT",
+                "You already have the maximum number of devices. Ask IT to turn one off, then try again."),
+            _ => Error("TOKEN_INVALID", result.AttemptsLeft > 0
+                ? $"That token isn't right. Check it and try again ({result.AttemptsLeft} {(result.AttemptsLeft == 1 ? "attempt" : "attempts")} left)."
+                : "That token isn't valid for this device. Check it, or tap \"Get token\" for a new one."),
         };
     }
 

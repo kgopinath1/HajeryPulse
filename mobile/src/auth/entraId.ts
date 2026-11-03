@@ -82,6 +82,17 @@ export class EntraSignInError extends Error {
   }
 }
 
+/**
+ * AADSTS50105: the account isn't assigned to Hajery Pulse in Entra ID
+ * (Enterprise applications → Users and groups, with "Assignment required"
+ * on), so Microsoft refuses the sign-in itself.
+ */
+function isNotAssigned(err: unknown): boolean {
+  const code = (err as { code?: unknown })?.code ?? '';
+  const message = (err as { message?: unknown })?.message ?? '';
+  return `${code} ${message}`.includes('AADSTS50105');
+}
+
 /** Best-effort, cross-platform detection of a user-initiated cancel. */
 function isUserCancelled(err: unknown): boolean {
   const code = (err as { code?: unknown })?.code ?? '';
@@ -107,6 +118,9 @@ export async function signInWithEntraId(): Promise<EntraIdSession> {
   } catch (err) {
     if (isUserCancelled(err)) {
       throw new EntraSignInError('cancelled', 'Sign-in was cancelled.');
+    }
+    if (isNotAssigned(err)) {
+      throw new EntraSignInError('failed', "Your account doesn't have access to Hajery Pulse. Contact IT if you need it.");
     }
     throw new EntraSignInError('failed', 'Sign-in failed. Please try again.');
   }

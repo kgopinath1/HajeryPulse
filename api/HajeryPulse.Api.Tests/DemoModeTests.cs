@@ -211,12 +211,12 @@ public sealed class DemoModeTests : IClassFixture<DemoApiFactory>
         Assert.True((await Get("/api/v1/auth/me")).GetProperty("isDemo").GetBoolean());
 
         var regular = _factory.ClientFor(DemoApiFactory.RegularOid);
-        regular.DefaultRequestHeaders.Add("X-Device-Key", FakeDeviceActivation.ActiveKey);
+        regular.DefaultRequestHeaders.Add("X-Device-Token", FakeDeviceTokens.ActiveToken);
         Assert.False((await Get("/api/v1/auth/me", regular)).GetProperty("isDemo").GetBoolean());
     }
 
     [Fact]
-    public async Task Unactivated_device_is_blocked_for_regular_users_but_the_demo_account_needs_no_key()
+    public async Task Unactivated_device_is_blocked_for_regular_users_but_the_demo_account_needs_no_token()
     {
         var regular = _factory.ClientFor(DemoApiFactory.RegularOid);
         var blocked = await regular.GetAsync("/api/v1/auth/me");

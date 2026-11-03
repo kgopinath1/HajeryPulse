@@ -312,10 +312,10 @@ WHERE NOT EXISTS (SELECT 1 FROM dim.Customer c WHERE c.Code = v.Code);
 GO
 
 -- ============================================================================
--- 7. dim.User — at least one demo user (replace EntraObjectId with a real GUID)
+-- 7. dim.User — at least one demo user
 -- ============================================================================
-INSERT INTO dim.[User] (EntraObjectId, Email, DisplayName, Roles)
-SELECT NEWID(), 'demo@hajerygroup.com', N'Demo Executive', N'["ceo","approver_lpo","approver_asset"]'
+INSERT INTO dim.[User] (Email, DisplayName, Roles)
+SELECT 'demo@hajerygroup.com', N'Demo Executive', N'["ceo","approver_lpo","approver_asset"]'
 WHERE NOT EXISTS (SELECT 1 FROM dim.[User] WHERE Email = 'demo@hajerygroup.com');
 GO
 

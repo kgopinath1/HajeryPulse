@@ -81,7 +81,7 @@ If the user base ever expands to ~500 (e.g. branch managers added), the same arc
 | Entra ID outage | Mobile shows "Sign in unavailable" but cached data still readable | 
 | Reporting DB lag | API falls back to last successful snapshot; banner shows "Data as of HH:MM" |
 | API instance crash | Load balancer routes to second instance; tokens are stateless so no session loss |
-| Lost device | IT revokes it (`app.usp_Device_Revoke`) — locked out within a minute; refresh token revoked via Entra ID admin |
+| Lost device | IT turns it off (`app.usp_Device_Deactivate`) — locked out within a minute; refresh token revoked via Entra ID admin |
 | Approval double-tap | DB unique constraint on (RequestId, ApproverId, Status) prevents duplicates |
 
 ## Out of scope (v1)

@@ -1,4 +1,5 @@
 using System.Security.Claims;
+using HajeryPulse.Api.Auth;
 using HajeryPulse.Api.Data;
 using HajeryPulse.Api.Demo;
 using Dapper;
@@ -44,7 +45,7 @@ public sealed class AuditLogMiddleware
 
         try
         {
-            var userId = ctx.User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "(unknown)";
+            var email  = ctx.User.GetEmail();
             var name   = ctx.User.FindFirstValue("name") ?? "";
             var ip     = ctx.Connection.RemoteIpAddress?.ToString() ?? "";
             var ua     = ctx.Request.Headers.UserAgent.ToString();
@@ -56,10 +57,10 @@ public sealed class AuditLogMiddleware
             await conn.ExecuteAsync(@"
                 INSERT INTO audit.Event (UserKey, EventType, EntityType, EntityId, ClientIp, DeviceInfo, TraceId, OccurredAt)
                 SELECT u.UserKey, @EventType, @EntityType, @EntityId, @ClientIp, @DeviceInfo, @TraceId, SYSUTCDATETIME()
-                FROM dim.[User] u WHERE u.EntraObjectId = TRY_CONVERT(uniqueidentifier, @UserId);",
+                FROM dim.[User] u WHERE u.Email = @Email;",
                 new
                 {
-                    UserId      = userId,
+                    Email       = email,
                     EventType   = eventType,
                     EntityType  = "Endpoint",
                     EntityId    = path,

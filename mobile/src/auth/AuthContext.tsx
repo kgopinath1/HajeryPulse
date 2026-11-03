@@ -7,23 +7,26 @@
  *   3. Fetch the user profile from /auth/me using that token
  *   4. If any step fails or there's no cached account → show LoginScreen
  *
- * After every sign-in this account's device key is loaded. If the API says
- * the device isn't activated (first install, reinstall, new phone) or was
- * revoked, `activationRequired` is set and the activation screen asks for a
- * code from IT — the Microsoft session is kept, so no second sign-in.
+ * After every sign-in this account's device token is
+ * loaded. If the API says the user isn't allowed (not active in dim.User),
+ * they're signed out of Microsoft again and shown the API's message. If the
+ * device isn't activated (new phone, or the token is missing after an
+ * Android reinstall) or was turned off, `activationRequired` is set and the activation screen offers "Get
+ * token" and token entry — the Microsoft session is kept, so no second
+ * sign-in.
  *
  * Exposes:
- *   user, isLoading, activationRequired, signIn(), signOut(), activate(),
- *   reauthenticate()
+ *   user, isLoading, activationRequired, signIn(), signOut(), requestToken(),
+ *   activate(), reauthenticate()
  */
 import React, { createContext, useContext, useEffect, useState, useCallback, useRef } from 'react';
 import { Alert, AppState, AppStateStatus } from 'react-native';
 import { getMe, signOut as signOutOnServer } from '@api/auth';
-import { activateDevice } from '@api/device';
-import { ApiError, DeviceActivationReason, setDeviceActivationHandler } from '@api/client';
+import { activateDevice, requestDeviceToken } from '@api/device';
+import { ApiError, DeviceAccessState, isDeviceAccessCode, setDeviceAccessHandler } from '@api/client';
 import { setAccessToken, clearAccessToken } from './tokens';
 import { signInWithEntraId, acquireTokenSilently, signOutEntraId, hasCachedAccount, EntraIdSession } from './entraId';
-import { loadDeviceKey, saveDeviceKey, clearDeviceKey } from './deviceKey';
+import { loadDevice, saveDeviceToken, clearDeviceToken } from './deviceToken';
 import { requireBiometric } from './biometric';
 import { isRuntimeCompromised } from './emulatorGuard';
 import { AuthUser } from '@domain';
@@ -34,11 +37,13 @@ import { AuthUser } from '@domain';
 // token itself stays valid.
 const INACTIVITY_LOCK_MS = 5 * 60 * 1000;
 
-/** Signed in with Microsoft, but this device still needs an activation code. */
+/** Signed in with Microsoft, but this device still needs a token from IT. */
 export interface ActivationRequired {
-  reason: DeviceActivationReason;
-  /** The Microsoft account signed in, so a shared phone shows whose code is needed. */
+  device: DeviceAccessState;
+  /** The Microsoft account signed in, so a shared phone shows whose token is needed. */
   username: string;
+  /** After "Get token": false if the request was saved but IT couldn't be emailed. */
+  itNotified?: boolean;
 }
 
 interface AuthContextValue {
@@ -49,15 +54,16 @@ interface AuthContextValue {
   activationRequired: ActivationRequired | null;
   signIn: () => Promise<void>;
   signOut: () => Promise<void>;
-  /** Redeems an activation code from IT. Rejects with the API's ApiError (message is user-facing). */
-  activate: (code: string) => Promise<void>;
+  /** "Get token": asks IT for a token for this device. Rejects with the API's ApiError. */
+  requestToken: () => Promise<void>;
+  /** Enters the token from IT. Rejects with the API's ApiError (message is user-facing). */
+  activate: (token: string) => Promise<void>;
   reauthenticate: () => Promise<boolean>;
   unlock: () => Promise<boolean>;
 }
 
-function isDeviceActivationError(e: unknown): e is ApiError & { code: DeviceActivationReason } {
-  const code = (e as ApiError | null)?.code;
-  return code === 'DEVICE_NOT_ACTIVATED' || code === 'DEVICE_REVOKED';
+function errorCode(e: unknown): string | undefined {
+  return (e as ApiError | null)?.code;
 }
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
@@ -70,15 +76,34 @@ export function AuthProvider({ children }: { children: React.ReactNode }): React
   const [activationRequired, setActivationRequired] = useState<ActivationRequired | null>(null);
   const backgroundedAtRef = useRef<number | null>(null);
   const usernameRef = useRef<string>('');
+  const signedInRef = useRef<boolean>(false);
 
-  // Any API call can find the device revoked mid-session (activated on
-  // another phone, or turned off by IT) — switch to the activation screen.
   useEffect(() => {
-    setDeviceActivationHandler(reason => {
-      if (reason === 'DEVICE_REVOKED') clearDeviceKey();
-      setActivationRequired({ reason, username: usernameRef.current });
+    signedInRef.current = user != null;
+  }, [user]);
+
+  // Any API call can find the user or device turned off by IT mid-session.
+  useEffect(() => {
+    setDeviceAccessHandler(issue => {
+      if (issue.code === 'USER_NOT_ALLOWED') {
+        // During sign-in, completeSignIn handles this and LoginScreen shows
+        // the message; mid-session, sign out here.
+        if (!signedInRef.current) return;
+        signOutEntraId().catch(() => undefined);
+        clearAccessToken();
+        setUser(null);
+        setLocked(false);
+        setActivationRequired(null);
+        Alert.alert('Access removed', issue.message);
+        return;
+      }
+      if (issue.code === 'DEVICE_REVOKED') clearDeviceToken();
+      setActivationRequired({
+        device: issue.device ?? { state: 'none', activeDevices: 0 },
+        username: usernameRef.current,
+      });
     });
-    return () => setDeviceActivationHandler(null);
+    return () => setDeviceAccessHandler(null);
   }, []);
 
   // Shared by boot restore and interactive sign-in. Resolves once the user
@@ -86,13 +111,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }): React
   const completeSignIn = useCallback(async (session: EntraIdSession) => {
     setAccessToken(session.accessToken, session.expiresOn);
     usernameRef.current = session.account.username;
-    await loadDeviceKey(session.account.identifier);
+    await loadDevice(session.account.identifier);
     try {
       const me = await getMe();
       setUser(me);
       setActivationRequired(null);
     } catch (e) {
-      if (isDeviceActivationError(e)) return; // handler above has shown the activation screen
+      const code = errorCode(e);
+      if (code === 'USER_NOT_ALLOWED') {
+        // Not in dim.User (or turned off): don't keep their Microsoft
+        // session, so the next tap on sign-in starts fresh.
+        await signOutEntraId().catch(() => undefined);
+        clearAccessToken();
+        throw e;
+      }
+      if (isDeviceAccessCode(code)) return; // handler above has shown the activation screen
       throw e;
     }
   }, []);
@@ -190,9 +223,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }): React
     }
   }, [completeSignIn]);
 
-  const activate = useCallback(async (code: string) => {
-    const deviceKey = await activateDevice(code);
-    await saveDeviceKey(deviceKey);
+  const requestToken = useCallback(async () => {
+    const { itNotified } = await requestDeviceToken();
+    setActivationRequired(prev => prev && {
+      ...prev,
+      device: { state: 'requested', activeDevices: prev.device.activeDevices },
+      itNotified,
+    });
+  }, []);
+
+  const activate = useCallback(async (token: string) => {
+    await activateDevice(token);
+    await saveDeviceToken(token);
     const me = await getMe();
     setUser(me);
     setActivationRequired(null);
@@ -204,8 +246,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }): React
     } catch {
       // Best-effort — don't block local sign-out on a network/API failure.
     }
-    // The device key stays, so the same user signing back in on this phone
-    // doesn't need a new code.
+    // The device token stays, so the same user signing back in on this
+    // phone doesn't need a new one.
     await signOutEntraId();
     clearAccessToken();
     setUser(null);
@@ -224,7 +266,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }): React
   }, []);
 
   return (
-    <AuthContext.Provider value={{ user, isLoading, blocked, locked, activationRequired, signIn, signOut, activate, reauthenticate, unlock }}>
+    <AuthContext.Provider value={{ user, isLoading, blocked, locked, activationRequired, signIn, signOut, requestToken, activate, reauthenticate, unlock }}>
       {children}
     </AuthContext.Provider>
   );

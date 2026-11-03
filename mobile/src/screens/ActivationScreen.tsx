@@ -9,11 +9,11 @@ import { useAuth } from '@auth/AuthContext';
 import { ApiError } from '@api/client';
 import { theme } from '@theme/index';
 
-const CODE_LENGTH = 8;
+const TOKEN_LENGTH = 8;
 
 /** Keeps letters/digits only, upper-cased, as "XXXX-XXXX". */
-function formatCode(input: string): string {
-  const chars = input.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, CODE_LENGTH);
+function formatToken(input: string): string {
+  const chars = input.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, TOKEN_LENGTH);
   return chars.length > 4 ? `${chars.slice(0, 4)}-${chars.slice(4)}` : chars;
 }
 
@@ -21,80 +21,146 @@ function isApiError(e: unknown): e is ApiError {
   return typeof e === 'object' && e !== null && 'code' in e && 'message' in e && 'status' in e;
 }
 
+function errorMessage(e: unknown): string {
+  // DeviceController's messages are written for the user.
+  return isApiError(e) && e.status > 0 ? e.message : "Couldn't reach Hajery Pulse. Check your connection and try again.";
+}
+
 /**
- * Shown after Microsoft sign-in when this device isn't activated for the
- * user yet (first install, reinstall, new phone) or was revoked. The code
- * comes from IT and works once, for this user only.
+ * Shown after Microsoft sign-in when this device has no token for the user
+ * yet (new phone, or the token was wiped by an Android reinstall) or IT
+ * turned it off. "Get token" emails IT, who send the user a token (to be
+ * entered within 2 hours). After a reinstall the same token works again.
  */
 export function ActivationScreen(): React.JSX.Element {
-  const { activationRequired, activate, signOut } = useAuth();
-  const [code, setCode] = useState('');
-  const [busy, setBusy] = useState(false);
+  const { activationRequired, requestToken, activate, signOut } = useAuth();
+  const [token, setToken] = useState('');
+  const [busy, setBusy] = useState<'request' | 'activate' | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const complete = code.replace('-', '').length === CODE_LENGTH;
-  const revoked = activationRequired?.reason === 'DEVICE_REVOKED';
+  const state = activationRequired?.device.state ?? 'none';
+  const otherDevices = activationRequired?.device.activeDevices ?? 0;
+  const known = state === 'known';
+  const showTokenEntry = state === 'requested' || state === 'issued' || known;
+  const complete = token.replace('-', '').length === TOKEN_LENGTH;
 
-  const onActivate = async () => {
-    setBusy(true);
+  const onRequest = async () => {
+    setBusy('request');
     setError(null);
     try {
-      await activate(code);
+      await requestToken();
     } catch (e) {
-      // DeviceController's messages are written for the user.
-      setError(isApiError(e) && e.status > 0 ? e.message : "Couldn't reach Hajery Pulse. Check your connection and try again.");
+      setError(errorMessage(e));
     } finally {
-      setBusy(false);
+      setBusy(null);
     }
   };
+
+  const onActivate = async () => {
+    setBusy('activate');
+    setError(null);
+    try {
+      await activate(token);
+    } catch (e) {
+      setError(errorMessage(e));
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  let icon = 'key-outline';
+  let title = 'Activate this device';
+  let text = 'Tap "Get token" to ask IT for a token for this device. You only need to do this once.';
+  if (state === 'revoked') {
+    icon = 'phone-portrait-outline';
+    title = 'Device turned off';
+    text = 'IT has turned off Hajery Pulse on this device. Tap "Get token" to ask for a new token.';
+  } else if (known) {
+    icon = 'key-outline';
+    title = 'Enter your token';
+    text = 'This device is already set up for you. Enter the token shared by IT.';
+  } else if (showTokenEntry) {
+    icon = 'mail-unread-outline';
+    title = 'Enter your token';
+    text = 'Your request has been sent to IT. Enter the token they give you within 2 hours.';
+  } else if (otherDevices > 0) {
+    icon = 'phone-portrait-outline';
+    title = 'New device';
+    text = `Hajery Pulse is already set up on ${otherDevices === 1 ? 'another device' : `${otherDevices} other devices`}. To use it on this device as well, ask IT for a token.`;
+  }
 
   return (
     <SafeAreaView style={styles.safe}>
       <KeyboardAvoidingView style={styles.body} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-        <Ionicons name={revoked ? 'phone-portrait-outline' : 'key-outline'} size={44} color={theme.colors.gold} />
-        <Text style={styles.title}>{revoked ? 'Activate this device again' : 'Activate this device'}</Text>
-        <Text style={styles.text}>
-          {revoked
-            ? 'Hajery Pulse was activated on another device, or turned off on this one by IT. Enter a new activation code from IT to use it here.'
-            : 'Enter the activation code from IT. You only need to do this once on this device.'}
-        </Text>
+        <Ionicons name={icon} size={44} color={theme.colors.gold} />
+        <Text style={styles.title}>{title}</Text>
+        <Text style={styles.text}>{text}</Text>
         {!!activationRequired?.username && (
           <Text style={styles.account}>Signed in as {activationRequired.username}</Text>
         )}
 
-        <TextInput
-          style={[styles.input, error ? styles.inputError : null]}
-          value={code}
-          onChangeText={t => { setCode(formatCode(t)); setError(null); }}
-          placeholder="XXXX-XXXX"
-          placeholderTextColor={theme.colors.text3}
-          autoCapitalize="characters"
-          autoCorrect={false}
-          autoComplete="off"
-          spellCheck={false}
-          maxLength={CODE_LENGTH + 1}
-          returnKeyType="done"
-          onSubmitEditing={() => complete && !busy && onActivate()}
-          editable={!busy}
-          accessibilityLabel="Activation code"
-        />
-        {error && <Text style={styles.error}>{error}</Text>}
+        {activationRequired?.itNotified === false && (
+          <Text style={styles.warning}>
+            Your request was saved, but IT couldn't be notified automatically. Please contact IT.
+          </Text>
+        )}
 
-        <TouchableOpacity
-          style={[styles.btn, (!complete || busy) && styles.btnDisabled]}
-          onPress={onActivate}
-          disabled={!complete || busy}
-        >
-          {busy ? (
-            <ActivityIndicator color={theme.colors.bg0} />
-          ) : (
-            <Text style={styles.btnText}>Activate</Text>
-          )}
-        </TouchableOpacity>
+        {showTokenEntry ? (
+          <>
+            <TextInput
+              style={[styles.input, error ? styles.inputError : null]}
+              value={token}
+              onChangeText={t => { setToken(formatToken(t)); setError(null); }}
+              placeholder="XXXX-XXXX"
+              placeholderTextColor={theme.colors.text3}
+              autoCapitalize="characters"
+              autoCorrect={false}
+              autoComplete="off"
+              spellCheck={false}
+              maxLength={TOKEN_LENGTH + 1}
+              returnKeyType="done"
+              onSubmitEditing={() => complete && !busy && onActivate()}
+              editable={!busy}
+              accessibilityLabel="Token"
+            />
+            {error && <Text style={styles.error}>{error}</Text>}
 
-        <Text style={styles.hint}>Codes are valid for 48 hours and can be used once.</Text>
+            <TouchableOpacity
+              style={[styles.btn, (!complete || !!busy) && styles.btnDisabled]}
+              onPress={onActivate}
+              disabled={!complete || !!busy}
+            >
+              {busy === 'activate' ? (
+                <ActivityIndicator color={theme.colors.bg0} />
+              ) : (
+                <Text style={styles.btnText}>Activate</Text>
+              )}
+            </TouchableOpacity>
 
-        <TouchableOpacity onPress={signOut} style={styles.signOut} disabled={busy}>
+            <TouchableOpacity onPress={onRequest} style={styles.link} disabled={!!busy}>
+              {busy === 'request' ? (
+                <ActivityIndicator color={theme.colors.text2} />
+              ) : (
+                <Text style={styles.linkText}>
+                  {known ? "Don't have it? Get a new token" : 'Token expired or not received? Ask again'}
+                </Text>
+              )}
+            </TouchableOpacity>
+          </>
+        ) : (
+          <>
+            {error && <Text style={styles.error}>{error}</Text>}
+            <TouchableOpacity style={[styles.btn, !!busy && styles.btnDisabled]} onPress={onRequest} disabled={!!busy}>
+              {busy === 'request' ? (
+                <ActivityIndicator color={theme.colors.bg0} />
+              ) : (
+                <Text style={styles.btnText}>{otherDevices > 0 && state !== 'revoked' ? 'Get token for this device' : 'Get token'}</Text>
+              )}
+            </TouchableOpacity>
+          </>
+        )}
+
+        <TouchableOpacity onPress={signOut} style={styles.signOut} disabled={!!busy}>
           <Text style={styles.signOutText}>Sign out</Text>
         </TouchableOpacity>
       </KeyboardAvoidingView>
@@ -108,6 +174,7 @@ const styles = StyleSheet.create({
   title: { color: theme.colors.text0, fontSize: 20, fontWeight: '700', marginTop: 16, textAlign: 'center' },
   text: { color: theme.colors.text1, fontSize: 14, lineHeight: 20, marginTop: 10, textAlign: 'center' },
   account: { color: theme.colors.text2, fontSize: 12, marginTop: 12, textAlign: 'center' },
+  warning: { color: theme.colors.gold, fontSize: 13, lineHeight: 18, marginTop: 16, textAlign: 'center' },
   input: {
     width: '100%', marginTop: 28,
     backgroundColor: theme.colors.surface,
@@ -126,7 +193,8 @@ const styles = StyleSheet.create({
   },
   btnDisabled: { opacity: 0.5 },
   btnText: { color: theme.colors.bg0, fontWeight: '700', fontSize: 14, letterSpacing: 0.4 },
-  hint: { color: theme.colors.text2, fontSize: 12, marginTop: 14, textAlign: 'center' },
+  link: { marginTop: 16, padding: 8, minHeight: 36, justifyContent: 'center' },
+  linkText: { color: theme.colors.text2, fontSize: 13, textAlign: 'center' },
   signOut: { marginTop: 24, padding: 8 },
   signOutText: { color: theme.colors.text2, fontSize: 13 },
 });
